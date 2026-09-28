@@ -1,0 +1,17 @@
+.env
+.venv
+venv/
+*.db
+*.sqlite
+__pycache__/
+*.py[cod]
+*$py.class
+.streamlit/secrets.toml
+target/
+*.log
+logs/*.log
+!logs/.gitkeep
+*.png
+.pytest_cache/
+.DS_Store
+Thumbs.db

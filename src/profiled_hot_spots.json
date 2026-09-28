@@ -1,0 +1,47 @@
+[
+  {
+    "function": "run_mock_pipeline",
+    "file": "profiler.py",
+    "filepath": "C:\\Antigravity_games\\NEXUS-ASTRA\\src\\nexus_astra\\performance\\profiler.py",
+    "line": 44,
+    "call_count": 1,
+    "cumulative_time": 2.6352733,
+    "total_time": 2.6700000000000002e-05
+  },
+  {
+    "function": "run_regime_detection",
+    "file": "main_v2.py",
+    "filepath": "C:\\Antigravity_games\\NEXUS-ASTRA\\src\\nexus_astra\\main_v2.py",
+    "line": 53,
+    "call_count": 1,
+    "cumulative_time": 2.6342203,
+    "total_time": 2.2000000000000003e-05
+  },
+  {
+    "function": "<built-in method builtins.__import__>",
+    "file": "~",
+    "filepath": "~",
+    "line": 0,
+    "call_count": 2,
+    "cumulative_time": 2.6298061,
+    "total_time": 0.0016928000000000002
+  },
+  {
+    "function": "<built-in method builtins.exec>",
+    "file": "~",
+    "filepath": "~",
+    "line": 0,
+    "call_count": 5,
+    "cumulative_time": 2.6272200000000003,
+    "total_time": 0.0708513
+  },
+  {
+    "function": "<module>",
+    "file": "__init__.py",
+    "filepath": "C:\\Antigravity_games\\NEXUS-ASTRA\\src\\nexus_astra\\feature_engineering\\__init__.py",
+    "line": 1,
+    "call_count": 1,
+    "cumulative_time": 2.6269546000000004,
+    "total_time": 4.69e-05
+  }
+]

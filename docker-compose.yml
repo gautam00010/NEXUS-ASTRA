@@ -1,0 +1,90 @@
+# =============================================================================
+# NEXUS-ASTRA Docker Compose — Full Stack
+#
+# Services:
+#   python-app  — Python trading pipeline (port 8080)
+#   go-router   — Go WebSocket router sidecar (port 9090)
+#   redis       — Shared cache / message broker (port 6379)
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Python Trading Application
+  # ---------------------------------------------------------------------------
+  python-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-astra-python
+    ports:
+      - "8080:8080"
+    command: ["python", "main_v2.py", "--mode", "morning"]
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - TELEGRAM_CHAT_ID=${TELEGRAM_CHAT_ID}
+    volumes:
+      - sqlite-data:/app/data
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - nexus-net
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Go WebSocket Router Sidecar
+  # ---------------------------------------------------------------------------
+  go-router:
+    build:
+      context: ./go_router
+      dockerfile: Dockerfile
+    container_name: nexus-astra-go-router
+    ports:
+      - "9090:9090"
+    environment:
+      - LISTEN_ADDR=:9090
+      - PYTHON_UPSTREAM=http://python-app:8080
+      - BINANCE_WS_URL=${BINANCE_WS_URL:-wss://fstream.binance.com/stream?streams=btcusdt@markPrice/ethusdt@markPrice}
+      - ZERODHA_WS_URL=${ZERODHA_WS_URL:-wss://ws.kite.trade}
+      - NEWSAPI_WS_URL=${NEWSAPI_WS_URL:-wss://newsapi.example.com/v1/stream}
+      - WHALEALERT_WS_URL=${WHALEALERT_WS_URL:-wss://whale-alert.io/ws}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_started
+    networks:
+      - nexus-net
+    restart: unless-stopped
+
+  # ---------------------------------------------------------------------------
+  # Redis — Shared cache and inter-service messaging
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    container_name: nexus-astra-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - nexus-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+# =============================================================================
+# Shared Resources
+# =============================================================================
+networks:
+  nexus-net:
+    driver: bridge
+
+volumes:
+  sqlite-data:
+    driver: local
+  redis-data:
+    driver: local

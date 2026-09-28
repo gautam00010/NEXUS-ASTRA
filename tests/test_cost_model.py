@@ -150,7 +150,10 @@ def test_options_exercised_vs_unexercised_stt():
 
 def test_slippage_tiering():
     """Large-cap should receive 10 bps slippage, mid/small-cap 30 bps fallback."""
-    model = IndiaCostModel()
+    from unittest.mock import MagicMock
+    mock_db = MagicMock()
+    mock_db.session_scope.side_effect = Exception("No DB")
+    model = IndiaCostModel(db_manager=mock_db)
 
     # Large caps: 10 bps = 0.0010
     assert model.get_slippage_rate("RELIANCE") == 0.0010
@@ -161,6 +164,7 @@ def test_slippage_tiering():
     # Mid/Small caps: 30 bps = 0.0030
     assert model.get_slippage_rate("SMALLCAP_XYZ") == 0.0030
     assert model.get_slippage_rate("UNLISTED_TICKER") == 0.0030
+
 
 
 def test_dynamic_slippage_from_database(test_db_manager):

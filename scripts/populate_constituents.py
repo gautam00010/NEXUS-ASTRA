@@ -273,11 +273,18 @@ def load_nifty_500_pit(dt=None):
     mgr = database_manager
     mgr.create_tables()
     with mgr.session_scope() as session:
-        rows = session.query(IndexConstituents.symbol).filter(
+        q = session.query(IndexConstituents.symbol).filter(
             IndexConstituents.is_delisted == False
-        ).distinct().all()
+        )
+        if dt is not None:
+            q = q.filter(
+                IndexConstituents.entry_date <= dt,
+                (IndexConstituents.exit_date.is_(None)) | (IndexConstituents.exit_date > dt)
+            )
+        rows = q.distinct().all()
         
     return [r[0] for r in rows] if rows else load_live_nifty_100()
+
 
 
 def populate_index_constituents(

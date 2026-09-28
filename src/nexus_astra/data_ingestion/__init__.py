@@ -17,6 +17,5 @@ from .database import (
     database_manager,
     initialize_database,
 )
-
-
-
+from .social_fetcher import SocialFetcher, SocialScraper
+from .trends_fetcher import TrendsEngine, TrendsFetcher

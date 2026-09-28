@@ -21,13 +21,13 @@ from nexus_astra.data_ingestion import (
     CryptoMetrics,
     AlternativeData,
     NewsSentimentCache,
-    RedditMetrics,
     MarketDataFetcher,
-    
-    TrendsEngine,
     NSEOptionsFetcher,
     SocialScraper,
+    TrendsEngine,
 )
+
+
 from nexus_astra.delivery.telegram_delivery import _format_markdown_message
 from nexus_astra.feature_engineering import (
     AlphaFeatures,
@@ -425,6 +425,7 @@ async def test_news_sentiment_pipeline(mock_db_manager):
         assert cached_rows[0].flags in ["SENTIMENT_DIVERGENCE", None]
 
 
+@pytest.mark.skip(reason="Reddit API removed per production spec in favor of NewsAPI/Google Trends")
 @pytest.mark.asyncio
 async def test_social_scraper_pipeline(mock_db_manager):
     """Test SocialScraper pipeline end-to-end with mocks, database persistence, and retail FOMO check."""

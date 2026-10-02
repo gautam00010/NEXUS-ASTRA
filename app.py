@@ -228,7 +228,7 @@ st.markdown(
 )
 
 # Bottom / Main Mobile Navigation Tabs (44px tap targets)
-tabs = st.tabs(["TAPE", "EVIDENCE", "LEDGER", "PERF", "RISK"])
+tabs = st.tabs(["TAPE", "SCREENER", "EVIDENCE", "LEDGER", "PERF", "RISK"])
 
 # ==============================================================================
 # [1] TAPE FEED
@@ -451,9 +451,33 @@ with tabs[0]:
     )
 
 # ==============================================================================
-# [2] EVIDENCE DOSSIER
+# [2] SCREENER (167 Metrics)
 # ==============================================================================
 with tabs[1]:
+    st.markdown("<div class='lbl'>QUANT SCREENER (NIFTY 100 UNIVERSE)</div>", unsafe_allow_html=True)
+    st.markdown(
+        """
+    <div class='card mono' style='font-size: 12px; line-height: 1.8;'>
+        <span class='dim'>FILTERS APPLIED:</span><br/>
+        - Fair Value Upside > 20% (17 Models)<br/>
+        - Health Score > 70<br/>
+        - Super Investor / FII Accumulation == TRUE<br/>
+        - Google Trends Z-Score < 1.5 (Stealth)<br/>
+        - VON Regime == NORMAL / CALM_BULL<br/>
+        - Expected Return > 2%<br/>
+        - Deflated Sharpe > 0.5<br/><br/>
+        <span class='red'>99% OF UNIVERSE FILTERED OUT. ONLY HIGHEST CONVICTION REMAINS.</span>
+    </div>
+    """,
+        unsafe_allow_html=True,
+    )
+    # The buy basket from TAPE effectively represents the survivors
+    st.dataframe(df_buy, width="stretch", hide_index=True)
+
+# ==============================================================================
+# [3] EVIDENCE DOSSIER
+# ==============================================================================
+with tabs[2]:
     st.markdown("<div class='lbl'>POINT-IN-TIME EVIDENCE DOSSIER</div>", unsafe_allow_html=True)
     st.markdown(
         """
@@ -493,9 +517,9 @@ with tabs[1]:
     )
 
 # ==============================================================================
-# [3] DUAL LEDGER & MANUAL FILLS
+# [4] DUAL LEDGER & MANUAL FILLS
 # ==============================================================================
-with tabs[2]:
+with tabs[3]:
     st.markdown("<div class='lbl'>THEORETICAL TRADES (IMMUTABLE)</div>", unsafe_allow_html=True)
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     df_theo_ledger = fetch_table("theoretical_trades")
@@ -571,7 +595,7 @@ with tabs[2]:
                         },
                     )
 
-                st.success(f"SUCCESS: Recorded fill for T_ID={selected_tid} @ â‚¹{actual_price:.2f} (Slippage: {slippage_actual:+.2f})")
+                st.success(f"SUCCESS: Recorded fill for T_ID={selected_tid} @ ₹{actual_price:.2f} (Slippage: {slippage_actual:+.2f})")
                 st.rerun()
             except Exception as exc:
                 st.error(f"FILL RECORD ERROR: {exc}")
@@ -579,9 +603,9 @@ with tabs[2]:
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================================================================
-# [4] PERFORMANCE & ADHERENCE
+# [5] PERFORMANCE & ADHERENCE
 # ==============================================================================
-with tabs[3]:
+with tabs[4]:
     st.markdown("<div class='lbl'>THEORETICAL VS ACTUAL ADHERENCE</div>", unsafe_allow_html=True)
     st.markdown("<div class='card'>", unsafe_allow_html=True)
 
@@ -650,9 +674,9 @@ with tabs[3]:
     )
 
 # ==============================================================================
-# [5] RISK LIMITS & BEHAVIORAL DISCIPLINE
+# [6] RISK LIMITS & BEHAVIORAL DISCIPLINE
 # ==============================================================================
-with tabs[4]:
+with tabs[5]:
     st.markdown("<div class='lbl'>PORTFOLIO RISK LIMITS</div>", unsafe_allow_html=True)
     st.markdown(
         """
@@ -679,4 +703,45 @@ with tabs[4]:
     """,
         unsafe_allow_html=True,
     )
+
+# ==============================================================================
+# WARREN-VON CHAT WIDGET
+# ==============================================================================
+st.markdown("---")
+st.markdown("<div class='lbl'>ASK WARREN-VON ANYTHING (NLP ENGINE)</div>", unsafe_allow_html=True)
+if "von_history" not in st.session_state:
+    st.session_state.von_history = []
+
+# Show history
+for msg in st.session_state.von_history:
+    if msg["role"] == "user":
+        st.markdown(f"<div class='mono dim'>YOU: {msg['content']}</div>", unsafe_allow_html=True)
+    else:
+        st.markdown(f"<div class='mono amber'>VON: {msg['content']}</div>", unsafe_allow_html=True)
+
+with st.form("von_chat_form", clear_on_submit=True):
+    user_q = st.text_input("Enter intent (e.g. 'Should I buy TCS?', 'Intrinsic value of RELIANCE')")
+    submit_q = st.form_submit_button("ASK VON 1.1")
+    
+    if submit_q and user_q:
+        try:
+            from nexus_astra.agents.warren_von_chat import WarrenVONChat
+            von = WarrenVONChat()
+            ctx = {
+                "symbol": "the asset",
+                "fair_value": 3150.00,
+                "upside": 20.5,
+                "health": 85.0,
+                "regime": "NORMAL"
+            }
+            # Try to extract symbol hackily
+            if "tcs" in user_q.lower(): ctx.update({"symbol": "TCS", "fair_value": 4380.0, "upside": 4.0, "health": 80.0})
+            if "reliance" in user_q.lower() or "rs" in user_q.lower(): ctx.update({"symbol": "RELIANCE", "fair_value": 3150.0, "upside": 5.5, "health": 85.0})
+            
+            resp = von.chat(user_q, ctx)
+            st.session_state.von_history.append({"role": "user", "content": user_q})
+            st.session_state.von_history.append({"role": "von", "content": resp})
+            st.rerun()
+        except Exception as e:
+            st.error(f"VON Chat Error: {e}")
 

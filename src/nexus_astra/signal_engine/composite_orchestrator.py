@@ -9,8 +9,10 @@ from typing import Any
 
 import polars as pl
 from nexus_astra.signal_engine.gates import Gates
-
 from nexus_astra.data_ingestion.database import DatabaseManager, database_manager
+from nexus_astra.feature_engineering.fair_value_engine import FairValueEngine
+from nexus_astra.data_ingestion.super_investor_fetcher import SuperInvestorFetcher
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +31,8 @@ class SignalOrchestrator:
 
     def __init__(self, db_manager: DatabaseManager | None = None) -> None:
         self.db_manager = db_manager or database_manager
+        self.fv_engine = FairValueEngine()
+        self.si_fetcher = SuperInvestorFetcher()
 
     def compute_composite_signal(
         self,
@@ -248,9 +252,16 @@ class SignalOrchestrator:
             logger.info(f"Signal rejected. Composite: {composite_score:.2f} <= 75 or Layer Agreement: {agreement_count} < 3.")
             return None
 
+        # Compute Fair Value and Health Score
+        fv_metrics = self.fv_engine.compute_fair_value_and_health(price_history.tail(1), price_val)
+        
+        # Compute Super Investor Accumulation
+        si_metrics = self.si_fetcher.fetch_accumulation(symbol)
+        si_weight = si_metrics.get("quality_conviction_weight", 0.0) * 100.0 # Max 10.0
+        
         # Determine Dominant Driver Factor
         pcr_funding_contr = abs(pcr_score * 0.15) + abs(offshore_score * 0.02) + abs(var_score * 0.10)
-        fii_smart_contr = abs(fii_dii_score * 0.15) + abs(bl_score * 0.13)
+        fii_smart_contr = abs(fii_dii_score * 0.15) + abs(bl_score * 0.13) + abs(si_weight)
         macro_contr = abs(us_lead_lag_score * 0.15) + abs(cross_market_score * 0.20)
 
         if macro_contr >= fii_smart_contr and macro_contr >= pcr_funding_contr:
@@ -328,4 +339,9 @@ class SignalOrchestrator:
             "invalidation_conditions": invalidation_conditions,
             "composite_score": float(composite_score),
             "layer_agreement_count": agreement_count,
+            "fair_value": float(fv_metrics["intrinsic_value"]),
+            "fair_value_upside_pct": float(fv_metrics["fair_value_upside_pct"]),
+            "health_score": float(fv_metrics["health_score"]),
+            "super_investor_accumulation": float(si_metrics["super_investor_accumulation"]),
+            "fii_accumulation_flag": bool(si_metrics["fii_accumulation_flag"])
         }

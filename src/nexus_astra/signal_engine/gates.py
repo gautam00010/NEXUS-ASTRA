@@ -10,9 +10,12 @@ class Gates:
 
     @staticmethod
     def data_health_gate(last_update: datetime) -> bool:
-        """DataHealth >16h stale -> DATA_FAIL"""
-        if (datetime.now(timezone.utc) - last_update).total_seconds() > 16 * 3600:
-            logger.warning("DataHealth Gate: Data >16h stale. DATA_FAIL")
+        """DataHealth: 48h on weekdays, 96h on weekends/holidays to accommodate non-trading days."""
+        now = datetime.now(timezone.utc)
+        max_stale_hours = 96 if now.weekday() in (5, 6) or (now.weekday() == 0 and now.hour < 10) else 48
+        diff_hours = (now - last_update).total_seconds() / 3600.0
+        if diff_hours > max_stale_hours:
+            logger.warning(f"DataHealth Gate: Data >{max_stale_hours}h stale (age: {diff_hours:.1f}h). DATA_FAIL")
             return False
         return True
 

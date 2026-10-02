@@ -307,6 +307,19 @@ async def pipeline_run(circuit_breaker: CircuitBreaker, health_monitor: SystemHe
         "Max Pain": max_pain,
         "Zero Gamma": zero_gamma,
         "Pin Risk Score": pin_risk,
+        "Expected Return": composite_signal.get("expected_return_pct", 0.0),
+        "Probability": composite_signal.get("confidence", 0.0),
+        "Kelly": composite_signal.get("kelly_raw_pct", 0.0),
+        "Layer Agreement": composite_signal.get("layer_agreement_count", 0),
+        "News Sentiment": alternative_data.get("news_sentiment_score", 0.0),
+        "Invalidation": " | ".join(composite_signal.get("invalidation_conditions", [])),
+        "Duration": composite_signal.get("duration", "DAYS"),
+        "Duration Display": composite_signal.get("duration_display", ""),
+        "Duration Days": composite_signal.get("duration_days", 0.0),
+        "Duration Theta": composite_signal.get("duration_theta", 0.0),
+        "Duration Z-Score": composite_signal.get("duration_z_score", 0.0),
+        "Duration GARCH Vol State": composite_signal.get("duration_garch_vol_state", "LOW"),
+        "Duration Rule": composite_signal.get("duration_regime_rule", ""),
     }
     telegram_payloads.append(payload)
 
@@ -354,7 +367,16 @@ async def main() -> dict[str, Any] | None:
             latest_date = nifty_raw.select(pl.col("trade_date").max()).item()
             from datetime import date as date_cls
             days_old = (date_cls.today() - latest_date).days if latest_date else 999
-            needs_daily_update = days_old >= 1
+            today = date_cls.today()
+            is_weekend = today.weekday() in (5, 6)
+            now_utc = datetime.now(timezone.utc)
+            today_session_closed = now_utc.hour >= 11
+            if is_weekend:
+                needs_daily_update = days_old > 2
+            elif today_session_closed:
+                needs_daily_update = days_old >= 1
+            else:
+                needs_daily_update = days_old > 1
         except Exception:
             needs_daily_update = True
 

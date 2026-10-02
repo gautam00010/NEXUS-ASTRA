@@ -22,3 +22,4 @@ matplotlib
 scipy
 finnhub-python
 fredapi
+python-dotenv

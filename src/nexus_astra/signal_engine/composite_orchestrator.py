@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import math
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, time as dt_time
 from typing import Any
 
 import polars as pl
@@ -73,7 +73,7 @@ class SignalOrchestrator:
         if isinstance(last_dt, datetime):
             last_update = last_dt if last_dt.tzinfo else last_dt.replace(tzinfo=timezone.utc)
         elif isinstance(last_dt, date):
-            last_update = datetime(last_dt.year, last_dt.month, last_dt.day, tzinfo=timezone.utc)
+            last_update = datetime.combine(last_dt, dt_time(10, 0), tzinfo=timezone.utc)
         else:
             last_update = datetime.now(timezone.utc)
 
@@ -115,7 +115,11 @@ class SignalOrchestrator:
             ema_200=ema_200,
             fii_trend_bullish=fii_bullish,
             trade_long=trade_long,
-            setup=setup
+            setup=setup,
+            spx_pct_chg=spx_pct_chg,
+            vix_close=vix_close,
+            dxy=dxy,
+            us10y=us10y,
         )
         if gate_res["status"] == "NO_TRADE":
             logger.warning(f"Gates failed: {gate_res['reason']}")
@@ -244,17 +248,26 @@ class SignalOrchestrator:
             logger.info(f"Signal rejected. Composite: {composite_score:.2f} <= 75 or Layer Agreement: {agreement_count} < 3.")
             return None
 
-        # Determine Duration Estimate based on dominant driver
+        # Determine Dominant Driver Factor
         pcr_funding_contr = abs(pcr_score * 0.15) + abs(offshore_score * 0.02) + abs(var_score * 0.10)
         fii_smart_contr = abs(fii_dii_score * 0.15) + abs(bl_score * 0.13)
         macro_contr = abs(us_lead_lag_score * 0.15) + abs(cross_market_score * 0.20)
 
-        if pcr_funding_contr >= fii_smart_contr and pcr_funding_contr >= macro_contr:
-            duration = "DAYS"
-        elif fii_smart_contr >= macro_contr:
-            duration = "WEEKS"
+        if macro_contr >= fii_smart_contr and macro_contr >= pcr_funding_contr:
+            dominant_factor = "MACRO"
+        elif fii_smart_contr >= pcr_funding_contr:
+            dominant_factor = "FII_SMART_MONEY"
         else:
-            duration = "MONTHS"
+            dominant_factor = "MICRO"
+
+        # Johansen VECM spread duration: Duration = ln(0.5) / ln(1 - 1/theta)
+        from nexus_astra.signal_engine.duration_engine import JohansenVECMDurationEngine
+        duration_metrics = JohansenVECMDurationEngine.compute_duration(
+            symbol=symbol,
+            price_history=price_history,
+            dominant_factor=dominant_factor,
+        )
+        duration = duration_metrics.duration_category
 
         # Look up win rate and compute expected return using fractional Kelly
         win_rate = HISTORICAL_WIN_RATES.get(regime_state, 0.55)
@@ -280,6 +293,7 @@ class SignalOrchestrator:
             f"[COUNTER-CASE] US flags: {us_flag_str or 'none'}. SPX overnight: {f'{spx_pct_chg:+.2f}%' if spx_pct_chg is not None else 'unavailable'}.",
             f"Macro Regime {regime_state} win rate {win_rate:.0%}. Composite {composite_score:.1f} | {agreement_count}/4 layers agree.",
             f"PCR {pcr:.2f} -> {'bullish' if pcr_score >= 0 else 'bearish'} microstructure. US bias applied: {us_bias:+.1f}pts.",
+            f"Duration {duration_metrics.duration_display} | Rule: {duration_metrics.regime_rule}.",
             f"Position sized at {position_size_pct:.1f}% (Kelly_20%={kelly_20pct:.1f}%, US_mult={us_position_mult:.1f}x, cap=15%).",
         ]
 
@@ -295,6 +309,14 @@ class SignalOrchestrator:
             "direction": direction,
             "confidence": float(composite_confidence),
             "duration": duration,
+            "duration_days": duration_metrics.duration_days,
+            "duration_display": duration_metrics.duration_display,
+            "duration_theta": duration_metrics.theta,
+            "duration_z_score": duration_metrics.z_score,
+            "duration_garch_vol_pct": duration_metrics.garch_vol_pct,
+            "duration_garch_vol_state": duration_metrics.garch_vol_state,
+            "duration_regime_rule": duration_metrics.regime_rule,
+            "duration_formula": duration_metrics.formula,
             "expected_return_pct": float(expected_return_pct),
             "stop_loss_pct": stop_loss_pct,
             "position_size_pct": float(position_size_pct),
@@ -305,4 +327,5 @@ class SignalOrchestrator:
             "rationale": rationale,
             "invalidation_conditions": invalidation_conditions,
             "composite_score": float(composite_score),
+            "layer_agreement_count": agreement_count,
         }

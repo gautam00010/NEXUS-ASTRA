@@ -124,15 +124,17 @@ class NewsSentiment:
 
         import aiohttp
         now = datetime.now(timezone.utc)
-        from_time = (now - timedelta(hours=24)).isoformat()
+        from_time = (now - timedelta(hours=72)).strftime("%Y-%m-%d")
         
         params = {
-            "q": "Nifty OR Sensex OR RBI OR \"India markets\"",
+            "q": "Nifty OR Sensex OR RBI OR \"Indian economy\" OR \"stock market\"",
             "from": from_time,
             "sortBy": "publishedAt",
+            "pageSize": 50,
             "language": "en",
             "apiKey": self.api_key,
         }
+
 
         try:
             async with aiohttp.ClientSession() as session:

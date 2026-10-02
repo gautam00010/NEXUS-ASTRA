@@ -1,12 +1,18 @@
 import os
 import time
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 
-from datadog_api_client import ApiClient, Configuration
-from datadog_api_client.v2.api.metrics_api import MetricsApi
-from datadog_api_client.v2.models import MetricPayload, MetricSeries, MetricPoint, MetricIntakeType
+try:
+    from datadog_api_client import ApiClient, Configuration
+    from datadog_api_client.v2.api.metrics_api import MetricsApi
+    from datadog_api_client.v2.models import MetricPayload, MetricSeries, MetricPoint, MetricIntakeType
+    HAS_DATADOG = True
+except ImportError:
+    ApiClient = Configuration = MetricsApi = None  # type: ignore
+    MetricPayload = MetricSeries = MetricPoint = MetricIntakeType = None  # type: ignore
+    HAS_DATADOG = False
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +23,7 @@ class SystemHealth:
     def __init__(self):
         self.api_key = os.getenv("DATADOG_API_KEY")
         self.app_key = os.getenv("DATADOG_APP_KEY")
-        self.enabled = bool(self.api_key and self.app_key)
+        self.enabled = bool(HAS_DATADOG and self.api_key and self.app_key)
         
         if self.enabled:
             configuration = Configuration()
@@ -26,7 +32,10 @@ class SystemHealth:
             self.api_client = ApiClient(configuration)
             self.metrics_api = MetricsApi(self.api_client)
         else:
-            logger.warning("Datadog credentials missing. Health metrics will only be logged locally.")
+            if not HAS_DATADOG:
+                logger.info("datadog-api-client not installed. Health metrics will only be logged locally.")
+            else:
+                logger.warning("Datadog credentials missing. Health metrics will only be logged locally.")
 
         self.tags = ["env:production", "project:nexus-astra"]
 
@@ -92,7 +101,7 @@ class SystemHealth:
         </head>
         <body>
             <h1>System Health Dashboard</h1>
-            <p>Last Updated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')} UTC</p>
+            <p>Last Updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S')} UTC</p>
             
             <div class="metric-card">
                 <h3>Pipeline Status</h3>

@@ -442,14 +442,12 @@ class MarketDataFetcher:
                 dxy = await asyncio.to_thread(fetch_fred, "DTWEXBGS", "dxy")
                 us10y = await asyncio.to_thread(fetch_fred, "DGS10", "us10y")
                 crude = await asyncio.to_thread(fetch_fred, "DCOILWTICO", "brent_crude")
-                gold = await asyncio.to_thread(fetch_fred, "IDTCOGSR", "gold")
                 usdinr = await asyncio.to_thread(fetch_fred, "DEXINUS", "usd_inr")
                 
                 # We can store them as dummy symbols to merge later
                 frames.append(FetchResult("DXY", dxy))
                 frames.append(FetchResult("US10Y", us10y))
                 frames.append(FetchResult("CRUDE", crude))
-                frames.append(FetchResult("GOLD", gold))
                 frames.append(FetchResult("INR=X", usdinr))
                 
             except Exception as e:

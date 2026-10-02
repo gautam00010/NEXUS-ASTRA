@@ -5,9 +5,15 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 import polars as pl
 import numpy as np
-import matplotlib
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
+try:
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    HAS_MATPLOTLIB = True
+except ImportError:
+    matplotlib = None
+    plt = None
+    HAS_MATPLOTLIB = False
 from sqlalchemy.orm import Session
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -262,6 +268,10 @@ class WalkForwardBacktester:
 
     def plot_equity_curve(self, df: pl.DataFrame, symbol: str) -> None:
         """Helper to plot and save the equity curve."""
+        if not HAS_MATPLOTLIB or plt is None:
+            logger.info("matplotlib not installed – skipping PNG equity plot")
+            return
+
         try:
             plt.figure(figsize=(10, 6))
             dates = df.get_column("Date").to_numpy()

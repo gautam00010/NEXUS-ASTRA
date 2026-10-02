@@ -52,12 +52,12 @@ class USMarketFetcher:
         "dxy": "DTWEXBGS",
         "us10y": "DGS10",
         "crude": "DCOILWTICO",
-        "gold": "GOLDAMGBD228NLBM",
     }
     FINNHUB_SYMBOLS = {
-        "spx": "^GSPC",
-        "nasdaq": "^IXIC",
-        "vix": "^VIX",
+        "spx": "SPY",
+        "nasdaq": "QQQ",
+        "vix": "VXX",
+        "gold": "GLD",
     }
 
     def __init__(self) -> None:
@@ -81,54 +81,56 @@ class USMarketFetcher:
         """
         results: dict[str, float | None] = {}
 
-        # --- Finnhub equity quotes (SPX, Nasdaq, VIX) ---
+        # --- Finnhub equity quotes (SPX via SPY, Nasdaq via QQQ, VIX via VXX, Gold via GLD) ---
         if self._client:
             for label, sym in self.FINNHUB_SYMBOLS.items():
-                results[label + "_close"] = await self._fetch_finnhub_quote(sym)
-            # SPX % change = (close - prev_close) / prev_close
-            spx_c = results.get("spx_close")
-            spx_p = await self._fetch_finnhub_prev_close("^GSPC")
-            if spx_c is not None and spx_p and spx_p != 0:
-                results["spx_pct_chg"] = (spx_c - spx_p) / spx_p * 100.0
-            else:
-                results["spx_pct_chg"] = None
+                quote = await self._fetch_finnhub_quote(sym)
+                if quote:
+                    results[label + "_close"] = float(quote["c"]) if quote.get("c") is not None else None
+                    if label == "spx":
+                        if quote.get("dp") is not None:
+                            results["spx_pct_chg"] = float(quote["dp"])
+                        elif quote.get("c") and quote.get("pc") and float(quote["pc"]) != 0:
+                            results["spx_pct_chg"] = (float(quote["c"]) - float(quote["pc"])) / float(quote["pc"]) * 100.0
+                        else:
+                            results["spx_pct_chg"] = None
+                    if label == "gold":
+                        results["gold"] = float(quote["c"]) if quote.get("c") is not None else None
+                else:
+                    results[label + "_close"] = None
+                    if label == "spx":
+                        results["spx_pct_chg"] = None
+                    if label == "gold":
+                        results["gold"] = None
         else:
             logger.info("FINNHUB_API_KEY missing – SKIP US equity quotes")
             for label in self.FINNHUB_SYMBOLS:
                 results[label + "_close"] = None
             results["spx_pct_chg"] = None
+            results["gold"] = None
 
-        # --- FRED macro (DXY, US10Y, Crude, Gold) ---
+        # --- FRED macro (DXY, US10Y, Crude) ---
         if self._fred_key:
             fred_data = await asyncio.to_thread(self._fetch_fred_batch)
             results.update(fred_data)
         else:
-            logger.info("FRED_API_KEY missing – SKIP DXY/US10Y/Crude/Gold")
+            logger.info("FRED_API_KEY missing – SKIP DXY/US10Y/Crude")
             for k in self.FRED_SERIES:
                 results[k] = None
 
         return results
 
-    async def _fetch_finnhub_quote(self, symbol: str) -> float | None:
-        """Fetch latest close with exponential backoff 2s,4s,8s – returns None on fail."""
+    async def _fetch_finnhub_quote(self, symbol: str) -> dict[str, Any] | None:
+        """Fetch quote dict with exponential backoff 2s,4s,8s – returns None on fail."""
         for delay in (2, 4, 8):
             try:
                 q = await asyncio.to_thread(self._client.quote, symbol)
-                return float(q["c"]) if q and q.get("c") else None
+                return q if q and q.get("c") else None
             except Exception as exc:
                 logger.warning(f"Finnhub quote {symbol} failed: {exc}. Retry in {delay}s")
                 await asyncio.sleep(delay)
         logger.error(f"Finnhub quote {symbol} exhausted retries – DATA_FAIL")
         return None
-
-    async def _fetch_finnhub_prev_close(self, symbol: str) -> float | None:
-        """Fetch previous close for pct-change calculation."""
-        try:
-            q = await asyncio.to_thread(self._client.quote, symbol)
-            return float(q["pc"]) if q and q.get("pc") else None
-        except Exception as exc:
-            logger.warning(f"Finnhub prev_close {symbol} failed: {exc}")
-            return None
 
     def _fetch_fred_batch(self) -> dict[str, float | None]:
         """Synchronous FRED batch fetch – call via asyncio.to_thread."""

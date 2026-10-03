@@ -25,7 +25,7 @@ fredapi
 python-dotenv
 vectorbt==0.28.1
 qlib
-openalgo @ git+https://github.com/marketcalls/openalgo.git
+openalgo
 ccxt
 statsmodels
 arch==7.0.0

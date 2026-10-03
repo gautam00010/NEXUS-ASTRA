@@ -35,4 +35,4 @@ pykalman
 networkx
 von-sdk @ git+https://github.com/wfzyx/von.git
 nautilus_trader==1.220.0
-Riskfolio-Lib==6.0.3
+Riskfolio-Lib

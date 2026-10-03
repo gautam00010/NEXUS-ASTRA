@@ -16,6 +16,8 @@ class VonRouter:
     """Wrapper for VON decision routing and psychological firewalls."""
     
     def __init__(self):
+        from nexus_astra.config import config
+        self._api_key = config.get_secret("VON_API_KEY")
         self.presets = {
             "regime_state": {
                 "choices": ["normal", "elevated_risk", "data_uncertain"],
@@ -42,7 +44,7 @@ class VonRouter:
         preset = self.presets[preset_name]
         start = time.time()
         
-        if not von or not hasattr(von, 'decide'):
+        if not self._api_key or not von or not hasattr(von, 'decide'):
             return {"choice": "DATA_FAIL", "confidence": 0.0, "latency_ms": 0.0}
         
         try:
@@ -62,7 +64,7 @@ class VonRouter:
         preset = self.presets[preset_name]
         start = time.time()
         
-        if not von or not hasattr(von, 'judge'):
+        if not self._api_key or not von or not hasattr(von, 'judge'):
             return {"probability": 0.0, "latency_ms": 0.0, "status": "DATA_FAIL"}
         
         try:
@@ -79,7 +81,7 @@ class VonRouter:
         preset = self.presets.get(preset_name)
         start = time.time()
         
-        if not von or not hasattr(von, 'rate') or not preset:
+        if not self._api_key or not von or not hasattr(von, 'rate') or not preset:
             return {"score": 0.0, "latency_ms": 0.0, "status": "DATA_FAIL"}
         
         try:

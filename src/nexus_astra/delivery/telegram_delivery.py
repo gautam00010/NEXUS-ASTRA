@@ -258,3 +258,31 @@ def _format_numeric(value: Any) -> str:
 
 def _escape(value: Any) -> str:
     return escape_markdown(str(value), version=2)
+
+def _format_markdown_message(signal: Mapping[str, Any]) -> str:
+    s = _normalize_payload(signal)
+    if "Symbol" in s and ("Signal Type" in s or "PCR" in s or "Entry Price" in s):
+        symbol = _escape(s.get("Symbol", "NIFTY 50"))
+        signal_type = _escape(s.get("Signal Type", "HOLD"))
+        msg = (
+            f"*Symbol:* `{symbol}`\n"
+            f"*Signal Type:* `{signal_type}`\n"
+        )
+        if "Entry Price" in s:
+            msg += f"*Entry Price:* `{_format_numeric(s['Entry Price'])}`\n"
+        if "Target" in s:
+            msg += f"*Target:* `{_format_numeric(s['Target'])}`\n"
+        if "Stop Loss" in s:
+            msg += f"*Stop Loss:* `{_format_numeric(s['Stop Loss'])}`\n"
+        if "Confidence Score" in s:
+            msg += f"*Confidence Score:* `{_format_numeric(s['Confidence Score'])}`\n"
+        if "PCR" in s:
+            msg += f"*NIFTY PCR:* `{_format_numeric(s['PCR'])}`\n"
+        if "Max Pain" in s:
+            msg += f"*NIFTY Max Pain:* `{_format_numeric(s['Max Pain'])}`\n"
+        if "Zero Gamma" in s:
+            msg += f"*NIFTY Zero Gamma:* `{_format_numeric(s['Zero Gamma'])}`\n"
+        if "Pin Risk Score" in s:
+            msg += f"*NIFTY Pin Risk:* `{_format_numeric(s['Pin Risk Score'])}`\n"
+        return msg
+    return _format_detailed_markdown(s)

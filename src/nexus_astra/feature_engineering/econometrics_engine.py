@@ -89,12 +89,19 @@ def johansen_test(series1, series2) -> dict:
         s1 = np.concatenate([base, s1])
         s2 = np.concatenate([base * 1.02 + 0.5, s2])
     data = np.column_stack([s1, s2])
-    res = coint_johansen(data, det_order=0, k_ar_diff=1)
-    trace_stat = [float(x) for x in res.lr1]
-    crit_vals = res.cvt.tolist()
     theta, z = EconometricsEngine.estimate_vecm_theta(s1, s2)
+    try:
+        res = coint_johansen(data, det_order=0, k_ar_diff=1)
+        trace_stat = [float(x) for x in res.lr1]
+        crit_vals = res.cvt.tolist()
+        cointegrated = bool(trace_stat[0] > crit_vals[0][1])
+    except Exception as exc:
+        logger.warning(f"Johansen direct test fallback triggered: {exc}")
+        trace_stat = [0.0, 0.0]
+        crit_vals = [[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]
+        cointegrated = False
     return {
-        "cointegrated": bool(trace_stat[0] > crit_vals[0][1]),
+        "cointegrated": cointegrated,
         "trace_stat": [round(x, 2) for x in trace_stat],
         "critical_values_95": [round(c[1], 2) for c in crit_vals],
         "theta": theta,

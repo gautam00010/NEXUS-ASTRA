@@ -71,8 +71,15 @@ def send_detailed_alert(payload: Mapping[str, Any] | str) -> dict[str, Any]:
     Contains >30 granular quantitative data points.
     """
     signal = _normalize_payload(payload)
-    bot_token = config.get_secret("TELEGRAM_BOT_TOKEN") or "8949230063:AAFEkqlxwmAWa_Of8aO5q9WezQ-Cf_VUMeY"
+    bot_token = config.get_secret("TELEGRAM_BOT_TOKEN")
     chat_id = signal.get("chat_id") or config.get_secret("TELEGRAM_CHAT_ID")
+
+    if not bot_token:
+        logger.warning("SKIP Telegram delivery: TELEGRAM_BOT_TOKEN missing.")
+        return {
+            "status": "missing_token",
+            "reason": "Set TELEGRAM_BOT_TOKEN in .env or Streamlit secrets.",
+        }
 
     # If chat_id not explicitly configured, attempt auto-discovery from recent Telegram getUpdates
     if not chat_id:

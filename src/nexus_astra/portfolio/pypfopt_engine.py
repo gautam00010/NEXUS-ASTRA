@@ -16,6 +16,7 @@ class PyPortfolioOptEngine:
             # Calculate expected returns and sample covariance
             mu = expected_returns.mean_historical_return(prices)
             S = risk_models.sample_cov(prices)
+            ef = EfficientFrontier(mu, S)
             
             try:
                 raw_weights = ef.max_sharpe(risk_free_rate=0.0)

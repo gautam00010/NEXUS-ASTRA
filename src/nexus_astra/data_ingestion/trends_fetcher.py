@@ -20,6 +20,9 @@ class TrendsFetcher:
         except ImportError:
             logger.warning("pytrends not installed")
             self.pytrends = None
+        except Exception as exc:
+            logger.warning(f"pytrends initialization unavailable: {exc}")
+            self.pytrends = None
 
     async def get_trends_score(self, keyword: str = "RELIANCE", timeframe: str = "now 7-d") -> float | str:
         """Fetch Google Trends interest_over_time and convert to Z-score."""
@@ -127,4 +130,3 @@ class TrendsEngine:
             session.add(record)
 
         return {"retail_fear_zscore": fear_z, "flags": flags}
-

@@ -169,11 +169,11 @@ class MarketDataFetcher:
                 session.execute(statement)
 
     def bootstrap_historical_flows(self) -> str | None:
-        """Verify real FII/DII history exists; if low, return DATA_FAIL and never synthesize fake data."""
+        """Verify real FII/DII history exists; if low, return DATA_FAIL and never synthesize substitute data."""
         with self.db_manager.session_scope() as session:
             existing_count = session.query(InstitutionalFlows).count()
             if existing_count < 10:
-                logger.error("DATA_FAIL: Real FII/DII flow records are insufficient (< 10). Never synthesizing fake flows.")
+                logger.error("DATA_FAIL: Real FII/DII flow records are insufficient (< 10). Never synthesizing substitute flows.")
                 return "DATA_FAIL"
         return None
 

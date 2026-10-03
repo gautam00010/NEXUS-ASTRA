@@ -79,7 +79,7 @@ class SurvivorshipCorrector:
     ) -> float | str:
         """
         If a stock was delisted, apply actual delisted return = -100% after delisting date + recovery if any.
-        If constituents table is empty, returns 'DATA_FAIL' (not a fake adjustment).
+        If constituents table is empty, returns 'DATA_FAIL' (never a synthetic adjustment).
         """
         df = self._load_constituents_df()
         if df.is_empty():

@@ -20,7 +20,7 @@ class VectorBTEngine:
         close = df_pd["Close"]
         
         # Fast MA crossover generation using Numba-compiled vectorbt indicator
-        fast_ma = vbt.MA.run(close, 10)
+        fast_ma = vbt.MA.run(close, 20)
         slow_ma = vbt.MA.run(close, 50)
         
         entries = fast_ma.ma_crossed_above(slow_ma.ma)

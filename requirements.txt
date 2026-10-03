@@ -25,9 +25,9 @@ fredapi
 python-dotenv
 vectorbt==0.28.1
 qlib
-openalgo
+openalgo @ git+https://github.com/marketcalls/openalgo.git
 ccxt
-statsmodels==0.14.2
+statsmodels
 arch==7.0.0
 PyPortfolioOpt==1.5.6
 PyWavelets
@@ -36,3 +36,5 @@ networkx
 von-sdk @ git+https://github.com/wfzyx/von.git
 nautilus_trader==1.220.0
 Riskfolio-Lib
+quantstats==0.0.62
+pandas-ta==0.3.14b0

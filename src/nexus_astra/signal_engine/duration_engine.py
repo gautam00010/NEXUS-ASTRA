@@ -222,8 +222,9 @@ class JohansenVECMDurationEngine:
 
         # 2. Estimate Johansen VECM theta & spread Z-Score
         if len(prices) >= 20:
-            theta, estimated_z = cls.estimate_vecm_theta(prices)
-            garch_vol_pct, garch_vol_state = cls.estimate_garch11_volatility(returns)
+            from nexus_astra.feature_engineering.econometrics_engine import EconometricsEngine
+            theta, estimated_z = EconometricsEngine.estimate_vecm_theta(prices, prices)  # Mock pair logic if pair_prices missing
+            garch_vol_pct, garch_vol_state = EconometricsEngine.estimate_garch11_volatility(returns)
         else:
             theta = 9.5
             estimated_z = 2.3

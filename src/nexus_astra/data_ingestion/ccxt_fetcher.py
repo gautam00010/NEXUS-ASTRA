@@ -2,6 +2,9 @@
 import ccxt
 import logging
 import asyncio
+from sqlalchemy import desc
+
+from nexus_astra.data_ingestion.database import PricesRaw, database_manager
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +27,35 @@ def fetch_crypto(symbol: str = "BTC/USDT") -> float:
             return float(ticker.get("last") or ticker.get("close") or 0.0)
         except Exception as e2:
             logger.error(f"CCXT fallback failed: {e2}")
+            fallback_price = _load_latest_cached_crypto_price(symbol)
+            if fallback_price is not None and fallback_price > 0:
+                logger.warning(
+                    f"Using cached crypto price for {symbol} from prices_raw due network failure: {fallback_price}"
+                )
+                return fallback_price
             raise e
+
+
+def _load_latest_cached_crypto_price(symbol: str) -> float | None:
+    symbol_upper = symbol.upper()
+    candidates = {
+        "BTC/USDT": ["BTC-USD", "BTCUSDT", "BTC", "XBTUSD"],
+        "ETH/USDT": ["ETH-USD", "ETHUSDT", "ETH"],
+    }.get(symbol_upper, [symbol_upper.replace("/", "-"), symbol_upper.replace("/", "")])
+
+    try:
+        with database_manager.session_scope() as session:
+            row = (
+                session.query(PricesRaw)
+                .filter(PricesRaw.symbol.in_(candidates))
+                .order_by(desc(PricesRaw.trade_date))
+                .first()
+            )
+            if row and row.close is not None:
+                return float(row.close)
+    except Exception as exc:
+        logger.debug(f"Cached crypto fallback lookup failed: {exc}")
+    return None
 
 class CCXTFetcher:
     def __init__(self):

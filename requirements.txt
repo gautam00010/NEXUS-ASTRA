@@ -2,12 +2,12 @@ polars
 pandas
 numpy
 streamlit
-plotly
+plotly<6
 requests
 xgboost
 lightgbm
 scikit-learn
-python-telegram-bot[all]==21.0.1
+python-telegram-bot>=21,<23
 yfinance
 sqlalchemy
 aiohttp
@@ -24,17 +24,16 @@ finnhub-python
 fredapi
 python-dotenv
 vectorbt==0.28.1
-qlib
+pyqlib
 openalgo
 ccxt
 statsmodels
 arch==7.0.0
-PyPortfolioOpt==1.5.6
+PyPortfolioOpt>=1.6.0
 PyWavelets
 pykalman
 networkx
-von-sdk @ git+https://github.com/wfzyx/von.git
 nautilus_trader==1.220.0
 Riskfolio-Lib
-quantstats==0.0.62
-pandas-ta==0.3.14b0
+quantstats
+pandas-ta

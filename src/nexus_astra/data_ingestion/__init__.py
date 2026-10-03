@@ -17,5 +17,6 @@ from .database import (
     database_manager,
     initialize_database,
 )
-from .social_fetcher import SocialFetcher, SocialScraper
+from .ccxt_fetcher import CCXTFetcher, fetch_crypto
+from .openalgo_fetcher import OpenAlgoFetcher
 from .trends_fetcher import TrendsEngine, TrendsFetcher

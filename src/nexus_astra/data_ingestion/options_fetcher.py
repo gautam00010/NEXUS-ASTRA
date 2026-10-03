@@ -118,7 +118,7 @@ class NSEOptionsFetcher:
                     break
 
                 sleep_seconds = self.base_backoff_seconds * (2**attempt)
-                jitter = random.uniform(0.0, self.base_backoff_seconds)
+                jitter = 0.25 * float(attempt)
                 self._prime_cookies(self.session)
                 self._sleep(sleep_seconds + jitter)
 

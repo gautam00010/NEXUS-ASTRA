@@ -153,22 +153,22 @@ class PandasToPolarsMigrator:
         )[:n_small]
         small_df = pl.DataFrame({
             "date": dates_small,
-            "open": np.random.uniform(15000, 25000, n_small),
-            "high": np.random.uniform(15000, 25000, n_small),
-            "low": np.random.uniform(15000, 25000, n_small),
-            "close": np.random.uniform(15000, 25000, n_small),
-            "volume": np.random.randint(100_000, 10_000_000, n_small),
+            "open": np.linspace(15000, 25000, n_small),
+            "high": np.linspace(15100, 25100, n_small),
+            "low": np.linspace(14900, 24900, n_small),
+            "close": np.linspace(15050, 25050, n_small),
+            "volume": np.linspace(100_000, 10_000_000, n_small).astype(int),
         })
 
         # --- Large dataset: ~100K rows (1-min options chain) ---
         n_large = 100_000
         large_df = pl.DataFrame({
             "timestamp": range(n_large),
-            "strike": np.random.uniform(15000, 25000, n_large),
-            "call_oi": np.random.randint(0, 500_000, n_large),
-            "put_oi": np.random.randint(0, 500_000, n_large),
-            "call_ltp": np.random.uniform(0, 500, n_large),
-            "put_ltp": np.random.uniform(0, 500, n_large),
+            "strike": np.linspace(15000, 25000, n_large),
+            "call_oi": np.linspace(1000, 500_000, n_large).astype(int),
+            "put_oi": np.linspace(1000, 500_000, n_large).astype(int),
+            "call_ltp": np.linspace(10, 500, n_large),
+            "put_ltp": np.linspace(10, 500, n_large),
             "spot": np.full(n_large, 22000.0),
         })
 

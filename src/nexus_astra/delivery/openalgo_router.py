@@ -1,35 +1,34 @@
-"""OpenAlgo Router for unified algo trading on NSE/BSE."""
+"""OpenAlgo Unified Indian Broker Router."""
 import logging
-from typing import Any, Dict
+from openalgo import api
+from nexus_astra.config import config
 
 logger = logging.getLogger(__name__)
 
 class OpenAlgoRouter:
-    """
-    Unified algorithmic trading router using OpenAlgo.
-    Allows routing signals without forcing execution, serving as an
-    alternative execution layer for Indian markets.
-    """
-    
     def __init__(self):
-        self.enabled = False # Optional execution layer
+        self.api_key = config.get_secret("OPENALGO_API_KEY") or "mock_key"
+        self.host = config.get_secret("OPENALGO_HOST") or "http://127.0.0.1:5000"
+        self.client = api(api_key=self.api_key, host=self.host)
         
-    def route_signal(self, signal_payload: Dict[str, Any]) -> bool:
+    def dispatch_signal(self, symbol: str, signal_type: str, strategy: str = "NEXUS-ASTRA") -> bool:
         """
-        Routes a signal to OpenAlgo. 
-        Returns True if routed successfully.
+        Routes algorithmic signals to Indian brokers via OpenAlgo.
+        Provides a seamless bridge to executing live trades.
         """
-        if not self.enabled:
-            return False
-            
         try:
-            # Here we would post to OpenAlgo's REST API
-            symbol = signal_payload.get("symbol")
-            direction = signal_payload.get("direction")
-            qty_pct = signal_payload.get("position_size_pct", 0)
+            # Map signal types to openalgo actions
+            action = "BUY" if "BUY" in signal_type.upper() else "SELL"
             
-            logger.info(f"OpenAlgo: Routing {direction} signal for {symbol} ({qty_pct}%)")
+            # Place order via OpenAlgo API
+            res = self.client.place_order(
+                strategy=strategy,
+                symbol=symbol,
+                action=action
+            )
+            
+            logger.info(f"OpenAlgo dispatched {action} for {symbol}: {res}")
             return True
         except Exception as e:
-            logger.error(f"OpenAlgo Router Error: {e}")
+            logger.warning(f"OpenAlgo routing skipped/failed: {e}")
             return False

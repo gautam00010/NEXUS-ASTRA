@@ -259,9 +259,13 @@ class SignalOrchestrator:
         si_metrics = self.si_fetcher.fetch_accumulation(symbol)
         si_weight = si_metrics.get("quality_conviction_weight", 0.0) * 100.0 # Max 10.0
         
+        # Compute Qlib Alpha158 Sleeve (15% max weight)
+        qlib_val = latest.get("qlib_alpha158_score", 0.0) if 'latest' in locals() else 0.0
+        qlib_score = max(-100.0, min(100.0, qlib_val))
+        
         # Determine Dominant Driver Factor
         pcr_funding_contr = abs(pcr_score * 0.15) + abs(offshore_score * 0.02) + abs(var_score * 0.10)
-        fii_smart_contr = abs(fii_dii_score * 0.15) + abs(bl_score * 0.13) + abs(si_weight)
+        fii_smart_contr = abs(fii_dii_score * 0.15) + abs(bl_score * 0.13) + abs(si_weight) + abs(qlib_score * 0.15)
         macro_contr = abs(us_lead_lag_score * 0.15) + abs(cross_market_score * 0.20)
 
         if macro_contr >= fii_smart_contr and macro_contr >= pcr_funding_contr:

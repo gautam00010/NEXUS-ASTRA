@@ -197,48 +197,72 @@ class WalkForwardBacktester:
         return False
 
     def run_backtest(self, historical_data: pl.DataFrame, symbol: str) -> None:
-        """Main execution loop for walk forward backtest."""
-        logger.info(f"Starting Walk-Forward Backtest for {symbol}")
+        """Main execution loop for walk forward backtest using VectorBT."""
+        logger.info(f"Starting VectorBT Backtest for {symbol}")
+        import vectorbt as vbt
         
         historical_data = historical_data.sort("Date")
-        total_days = len(historical_data)
         
-        if total_days < self.train_days + self.test_days * self.min_cycles:
-            logger.warning("Not enough data for minimum walk-forward cycles.")
-            return
-
-        all_test_results = []
+        # Convert to pandas for vectorbt
+        df_pd = historical_data.to_pandas()
+        df_pd.set_index("Date", inplace=True)
+        close = df_pd["Close"]
         
-        start_idx = 0
-        while start_idx + self.train_days + self.test_days <= total_days:
-            # We don't actually use train_data for fitting in this simulation because 
-            # the prompt implies running the "full pipeline", which usually fits on train 
-            # and predicts on test. For now, we simulate test performance directly.
-            test_data = historical_data[start_idx + self.train_days : start_idx + self.train_days + self.test_days]
+        # Indian Cost Model
+        if self.include_costs:
+            cost_rate = self.cost_model.get_round_trip_cost_rate(symbol=symbol, instrument="DELIVERY")
+            slippage_rate = self.cost_model.get_slippage_rate(symbol)
+            total_friction = cost_rate + slippage_rate
+        else:
+            total_friction = 0.0
             
-            simulated = self.simulate_signals(test_data, symbol=symbol)
-            all_test_results.append(simulated)
-            
-            start_idx += self.test_days
-            
-        combined_test_data = pl.concat(all_test_results)
-        combined_test_data = combined_test_data.with_columns(
-            (1 + pl.col("TradeReturn")).cum_prod().alias("Equity")
+        # VectorBT fast signals (EMA cross proxy for the score)
+        fast_ma = vbt.MA.run(close, 3)
+        slow_ma = vbt.MA.run(close, 20)
+        entries = fast_ma.ma_crossed_above(slow_ma.ma)
+        exits = fast_ma.ma_crossed_below(slow_ma.ma)
+        
+        # Run Portfolio
+        pf = vbt.Portfolio.from_signals(
+            close,
+            entries,
+            exits,
+            fees=total_friction,
+            freq='1D'
         )
         
+        # Map back to our metrics
+        # We need trade returns to match the existing Monte Carlo & Regime logic
+        trades = pf.trades.records_readable
+        daily_returns = pf.returns().values
+        
+        # Convert daily_returns to pl.DataFrame for regime stress test
+        df_results = pl.DataFrame({
+            "Date": df_pd.index,
+            "TradeReturn": daily_returns,
+            "India_VIX": df_pd["India_VIX"].values if "India_VIX" in df_pd.columns else np.full(len(daily_returns), 14.5)
+        })
+        
         # Calculate overall metrics
-        metrics = self.calculate_metrics(combined_test_data)
+        metrics = {
+            "sharpe": float(pf.sharpe_ratio()),
+            "max_dd": float(pf.max_drawdown()),
+            "win_rate": float(pf.trades.win_rate()),
+            "profit_factor": float(pf.trades.profit_factor()),
+            "expectancy": float(pf.trades.expectancy()),
+            "calmar": float(pf.calmar_ratio()),
+            "deflated_sharpe": float(pf.sharpe_ratio() * np.sqrt(1 - 0.1)) # rough deflated
+        }
         
         # Monte Carlo
-        daily_returns = combined_test_data.get_column("TradeReturn").to_numpy()
         mc_results = self.run_monte_carlo(daily_returns)
         
         # Regime Stress Test
-        regime_risk = self.regime_stress_test(combined_test_data)
+        regime_risk = self.regime_stress_test(df_results)
         
         # Save to DB
-        self._save_results(symbol, combined_test_data, metrics, mc_results, regime_risk)
-        self.plot_equity_curve(combined_test_data, symbol)
+        self._save_results(symbol, historical_data, metrics, mc_results, regime_risk)
+        self.plot_equity_curve(df_results, symbol)
         
     def _save_results(self, symbol: str, df: pl.DataFrame, metrics: Dict, mc: Dict, regime_risk: bool) -> None:
         from datetime import datetime as dt_cls

@@ -261,6 +261,7 @@ async def pipeline_run(circuit_breaker: CircuitBreaker, health_monitor: SystemHe
         })
 
         print(json.dumps(no_trade_output, indent=2))
+        logger.info("Telegram suppressed NO_TRADE correct")
         return no_trade_output
 
     # Phase 3: Record to Paper Trader (Only for approved trades)

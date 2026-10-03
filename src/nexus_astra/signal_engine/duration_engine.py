@@ -325,12 +325,16 @@ class JohansenVECMDurationEngine:
 
         # General Johansen VECM spread half-life calculation
         half_life = cls.calculate_half_life(theta)
-        if half_life <= 5.0:
-            category = "2-5 days"
-        elif half_life <= 15.0:
-            category = "5-15 days LFT"
+        
+        # Map to hours/days/weeks/months LFT: <1 day=hours, 1-5 days=days, 5-20 days=week, >20 days=month
+        if half_life < 1.0:
+            category = "hours"
+        elif 1.0 <= half_life < 5.0:
+            category = "days"
+        elif 5.0 <= half_life <= 20.0:
+            category = "week"
         else:
-            category = "weeks to months"
+            category = "month"
 
         regime_rule = f"Johansen VECM spread half-life (theta={theta:.1f})"
         display = f"{category} [Half-Life: {half_life:.1f}d, theta={theta:.1f}]"

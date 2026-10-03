@@ -1,8 +1,9 @@
-"""Crypto fetcher for Binance and CoinGecko (free tiers)."""
+"""Crypto fetcher for Binance and CoinGecko (free tiers) via CCXT."""
 import logging
 import asyncio
 import aiohttp
 from typing import Any
+import ccxt.async_support as ccxt_async
 
 logger = logging.getLogger(__name__)
 
@@ -11,24 +12,29 @@ class CryptoFetcher:
         pass
 
     async def fetch_prices(self) -> dict[str, Any]:
-        """Fetch BTC and ETH prices from Binance and CoinGecko."""
+        """Fetch BTC and ETH prices using CCXT and CoinGecko."""
         prices = {}
         
-        # 1. Binance Primary
+        # 1. CCXT Binance Primary
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.get("https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT", timeout=5) as r:
-                    if r.status == 200:
-                        data = await r.json()
-                        prices["BTC"] = float(data["price"])
+            exchange = ccxt_async.binance()
+            ticker_btc = await exchange.fetch_ticker('BTC/USDT')
+            prices["BTC"] = ticker_btc['last']
+            
+            ticker_eth = await exchange.fetch_ticker('ETH/USDT')
+            prices["ETH"] = ticker_eth['last']
+            
+            try:
+                # Funding rate
+                funding = await exchange.fetch_funding_rate('BTC/USDT:USDT')
+                if funding and 'fundingRate' in funding:
+                    prices["BTC_Funding"] = float(funding['fundingRate'])
+            except Exception as e2:
+                logger.warning(f"CCXT Binance funding rate failed: {e2}")
                 
-                async with session.get("https://fapi.binance.com/fapi/v1/fundingRate?symbol=BTCUSDT&limit=1", timeout=5) as r:
-                    if r.status == 200:
-                        data = await r.json()
-                        if data:
-                            prices["BTC_Funding"] = float(data[0]["fundingRate"])
+            await exchange.close()
         except Exception as e:
-            logger.warning(f"Binance API failed: {e}")
+            logger.warning(f"CCXT Binance API failed: {e}")
 
         # 2. CoinGecko Backup
         try:
@@ -39,7 +45,7 @@ class CryptoFetcher:
                         data = await r.json()
                         if "bitcoin" in data and "BTC" not in prices:
                             prices["BTC"] = data["bitcoin"]["usd"]
-                        if "ethereum" in data:
+                        if "ethereum" in data and "ETH" not in prices:
                             prices["ETH"] = data["ethereum"]["usd"]
         except Exception as e:
             logger.warning(f"CoinGecko API failed: {e}")

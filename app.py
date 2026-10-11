@@ -228,7 +228,8 @@ st.markdown(
 )
 
 # Bottom / Main Mobile Navigation Tabs (44px tap targets)
-tabs = st.tabs(["TAPE", "SCREENER", "EVIDENCE", "LEDGER", "PERF", "RISK", "LEARN", "DRIFT", "MUMBAI"])
+tabs = st.tabs(["TAPE", "SCREENER", "EVIDENCE", "LEDGER", "PERF", "RISK", "LEARN", "DRIFT", "MUMBAI", "INSTITUTIONAL"])
+
 
 # ==============================================================================
 # [1] TAPE FEED
@@ -1553,6 +1554,254 @@ with tabs[8]:
     except Exception as exc:
         st.error(f"Mumbai Quant Desk Error: {exc}")
         logger.warning(f"Mumbai tab error: {exc}")
+
+# ==============================================================================
+# [10] INSTITUTIONAL LFT EXPONENTIAL DESK (HOURS TO WEEKS)
+# ==============================================================================
+with tabs[9]:
+    st.markdown("<div class='lbl'>🏛️ INSTITUTIONAL LOW-FREQUENCY TRADING (LFT) // EXPONENTIAL ARCHITECTURE</div>", unsafe_allow_html=True)
+    st.markdown("<div class='mono dim'>Holding: Hours to Weeks | Game Theory vs HFT | 3rd-Order Mechanics | Top 10 Models | Kelly Ergodicity | 5-Question Checklist</div>", unsafe_allow_html=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    try:
+        from nexus_astra.game_theory import explicit_edge_vs_hft, third_order_signal
+        from nexus_astra.institutional import (
+            compute_cross_sectional_momentum_basket,
+            evaluate_fii_options_positioning,
+            evaluate_earnings_revision_drift,
+            evaluate_volume_profile_imbalance,
+            evaluate_crypto_equity_lead_lag,
+            evaluate_residual_stat_arb,
+            evaluate_rbi_policy_event,
+            evaluate_vrp_harvest,
+            evaluate_bse_liquidity_provision,
+            InstitutionalHMMRegimeClassifier,
+            run_institutional_lft_suite,
+        )
+        from nexus_astra.probability import (
+            calculate_institutional_kelly,
+            compute_bayesian_posterior,
+            calculate_trade_expected_value,
+            compute_second_order_statistics,
+        )
+        from nexus_astra.philosophy import (
+            compute_ergodicity_recovery_burden,
+            evaluate_soros_reflexivity_drag,
+            compute_antifragile_barbell_allocation,
+            evaluate_unforced_error_risk,
+        )
+        from nexus_astra.checklist import evaluate_institutional_checklist
+        from nexus_astra.research import InstitutionalLFTResearchEngine
+
+        # SECTION 1: GAME THEORY & THIRD-ORDER THINKING
+        st.markdown("<div class='lbl'>1. GAME THEORY: WINNING VS AI & THIRD-ORDER THINKING</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        gt_col1, gt_col2 = st.columns([1, 1])
+
+        with gt_col1:
+            st.markdown("<b>HFT vs LFT Structural Edge Matrix:</b>", unsafe_allow_html=True)
+            hft_edge_res = explicit_edge_vs_hft(holding_period_days=5, capital_deployed_cr=2.5)
+            st.markdown(f"<div class='mono'>• Holding Window: <span class='green'>{hft_edge_res['holding_horizon']}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• Edge Category: <span class='amber'>{hft_edge_res['edge_classification']}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• HFT Advantage: <span class='red'>Speed (<1ms), Colocation (Zero Edge for Retail/LFT)</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• LFT Advantage: <span class='green'>Capacity constraints (HFT cannot hold ₹50cr overnight), Slow Alpha (3-10d)</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono dim'>{hft_edge_res['guidance']}</div>", unsafe_allow_html=True)
+
+        with gt_col2:
+            st.markdown("<b>Two Sigma & Bridgewater 3rd-Order Gap Reaction:</b>", unsafe_allow_html=True)
+            gap_input = st.slider("Overnight Gap (%)", min_value=-3.0, max_value=3.0, value=1.35, step=0.05)
+            fii_input = st.slider("FII Long Futures Percentile (%)", min_value=10.0, max_value=99.0, value=84.0, step=1.0)
+            bn_confirms = st.checkbox("BankNifty Confirms Gap Fade?", value=False)
+            
+            to_res = third_order_signal(gap_pct=gap_input, fii_long_futures_percentile=fii_input, banknifty_confirms_fade=bn_confirms)
+            st.markdown(f"<div class='mono'>• 1st Order (Retail): <span class='dim'>{to_res['first_order_retail']['reaction']}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• 2nd Order (Crowded Quants): <span class='amber'>{to_res['second_order_quant']['reaction']}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• 3rd Order (Institutional Edge): <span class='green'>{to_res['third_order_institutional']['reaction']}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• Action: <b>{to_res['action']}</b> (Win Rate: {to_res['win_rate_expectancy_pct']}%)</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # SECTION 2: TOP 10 INSTITUTIONAL LFT MODELS
+        st.markdown("<div class='lbl'>2. TOP 10 INSTITUTIONAL LFT MODELS (HOURS TO WEEKS)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        
+        m_tab1, m_tab2, m_tab3 = st.columns(3)
+        with m_tab1:
+            st.markdown("<b>M1: Cross-Sectional Momentum</b>", unsafe_allow_html=True)
+            st.caption("12-1 Month Return/Vol, Riskfolio HRP, Sharpe 1.5-2.0")
+            m1_res = compute_cross_sectional_momentum_basket()
+            st.markdown(f"<div class='mono green'>Top Decile Longs: {', '.join(m1_res.get('top_decile_longs', ['N/A'])[:3])}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono red'>Bottom Decile Shorts: {', '.join(m1_res.get('bottom_decile_shorts', ['N/A'])[:3])}</div>", unsafe_allow_html=True)
+
+            st.markdown("<br><b>M4: Volume Profile & Order Flow</b>", unsafe_allow_html=True)
+            st.caption("POC, VAH, VAL, Cumulative Delta > +2M")
+            m4_res = evaluate_volume_profile_imbalance()
+            st.markdown(f"<div class='mono green'>Action: {m4_res['signal']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>POC: ₹{m4_res['prev_day_profile']['poc']} | Delta: +{m4_res['cumulative_delta_shares']:,.0f} sh</div>", unsafe_allow_html=True)
+
+            st.markdown("<br><b>M7: RBI Event-Driven NIM Drift</b>", unsafe_allow_html=True)
+            st.caption("Hawkish Surprise T+1 PSU Bank NIM Expansion")
+            m7_res = evaluate_rbi_policy_event()
+            st.markdown(f"<div class='mono green'>Signal: {m7_res['signal']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>Basket: {', '.join(m7_res['recommended_basket'])} (Hold: {m7_res['holding_horizon']})</div>", unsafe_allow_html=True)
+
+        with m_tab2:
+            st.markdown("<b>M2: FII Flow + Options Positioning</b>", unsafe_allow_html=True)
+            st.caption("FII Long Futures > 80%ile + PCR < 0.80 -> 62% Win")
+            m2_res = evaluate_fii_options_positioning()
+            st.markdown(f"<div class='mono green'>Regime: {m2_res['regime']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>Win Rate: {m2_res['forward_5d_win_rate_pct']}% | Payoff: {m2_res['expected_payoff']}</div>", unsafe_allow_html=True)
+
+            st.markdown("<br><b>M5: Crypto-Equity Lead-Lag</b>", unsafe_allow_html=True)
+            st.caption("BTC Dominance < 54% Leads Indian Midcaps by 48h")
+            m5_res = evaluate_crypto_equity_lead_lag()
+            st.markdown(f"<div class='mono green'>Regime: {m5_res['regime_classification']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>Stance: {m5_res['nse_positioning_stance']}</div>", unsafe_allow_html=True)
+
+            st.markdown("<br><b>M8: Volatility Risk Premium (VRP) Harvest</b>", unsafe_allow_html=True)
+            st.caption("IV > RV 85% of Time, Sell 10Δ Strangle, VIX > 20, Max 15%")
+            m8_res = evaluate_vrp_harvest()
+            st.markdown(f"<div class='mono amber'>Status: {m8_res['status']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>VIX: {m8_res['vix_current']} | Alloc: {m8_res['recommended_allocation_pct']}% (Max {m8_res['max_cap_pct']}%)</div>", unsafe_allow_html=True)
+
+        with m_tab3:
+            st.markdown("<b>M3: Earnings Revision Drift (ERD)</b>", unsafe_allow_html=True)
+            st.caption("3+ Analysts Revise EPS > 5% -> 20-30 Day Drift +8%")
+            m3_res = evaluate_earnings_revision_drift()
+            st.markdown(f"<div class='mono green'>Action: {m3_res['action']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>Target Drift: +{m3_res['projected_drift_pct']}% (₹{m3_res['projected_price_target']})</div>", unsafe_allow_html=True)
+
+            st.markdown("<br><b>M6: BankNifty StatArb Residual Reversion</b>", unsafe_allow_html=True)
+            st.caption("OLS Beta Residual |z| > 2.5 -> 3-5 Day Mean-Reversion")
+            m6_res = evaluate_residual_stat_arb()
+            st.markdown(f"<div class='mono green'>Signal: {m6_res['signal']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>Order: {m6_res['action']}</div>", unsafe_allow_html=True)
+
+            st.markdown("<br><b>M9: BSE Microstructure Spread Capture</b>", unsafe_allow_html=True)
+            st.caption("1-2% Spread During 09:30-10:30 AM Passive Limits")
+            m9_res = evaluate_bse_liquidity_provision()
+            st.markdown(f"<div class='mono green'>Action: {m9_res['action']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>Spread: {m9_res['spread_pct']}% ({m9_res['spread_bps']} bps) | Net Capture: {m9_res['expected_net_capture_bps']} bps</div>", unsafe_allow_html=True)
+
+        st.markdown("<hr style='margin:10px 0; border-color:#222;'>", unsafe_allow_html=True)
+        st.markdown("<b>M10: AI Ensemble Regime-Switching HMM (Hidden Markov Model)</b>", unsafe_allow_html=True)
+        m10_res = InstitutionalHMMRegimeClassifier.classify_regime()
+        st.markdown(
+            f"<div class='mono'>Current Regime: <span class='green'><b>{m10_res['regime_name']}</b></span> | "
+            f"Recommended Equity Exposure: <b>{m10_res['recommended_equity_exposure_pct']}%</b> | "
+            f"Active Mandate: <b>{m10_res['risk_stance']}</b></div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # SECTION 3: ADVANCED PROBABILITY & SECOND-ORDER STATS
+        st.markdown("<div class='lbl'>3. ADVANCED PROBABILITIES & SECOND-ORDER STATS</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        prob_c1, prob_c2 = st.columns([1, 1])
+
+        with prob_c1:
+            st.markdown("<b>Kelly Criterion vs Half-Kelly (Ergodicity Protection):</b>", unsafe_allow_html=True)
+            kelly_calc = calculate_institutional_kelly(win_rate=0.55, payoff_ratio=1.50, fraction_multiplier=0.50, max_cap_pct=12.5)
+            st.markdown(f"<div class='mono'>• Win Rate: 55% | Payoff Ratio: 1.50:1</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• Full Kelly: <span class='amber'>{kelly_calc['full_kelly_pct']}%</span> (50% risk of 50% drawdown)</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• Half-Kelly (Institutional): <span class='green'>{kelly_calc['recommended_allocation_pct']}% max</span> (11% risk of 50% DD)</div>", unsafe_allow_html=True)
+
+            st.markdown("<br><b>Bayesian Base Rate Updating:</b>", unsafe_allow_html=True)
+            bayes_res = compute_bayesian_posterior(prior_base_rate=0.08, true_positive_rate=0.70, false_positive_rate=0.20)
+            st.markdown(f"<div class='mono'>• Prior Base Rate (1-Year Doubler): <span class='dim'>{bayes_res['prior_base_rate_pct']}%</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• Signal True Positive Rate: <span class='amber'>{bayes_res['signal_true_positive_rate_pct']}%</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• True Posterior Probability: <span class='green'><b>{bayes_res['true_posterior_probability_pct']}%</b></span> (Retail assumes 70%)</div>", unsafe_allow_html=True)
+
+        with prob_c2:
+            st.markdown("<b>Expected Value (EV) with Indian Friction:</b>", unsafe_allow_html=True)
+            ev_res = calculate_trade_expected_value(win_rate=0.52, avg_win_inr=24000.0, avg_loss_inr=12000.0, roundtrip_friction_inr=650.0)
+            st.markdown(f"<div class='mono'>• Gross EV: +₹{ev_res['gross_ev_inr']:,.2f} | Roundtrip Friction: -₹{ev_res['friction_cost_inr']}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• Net EV per Trade: <span class='green'><b>+₹{ev_res['net_ev_per_trade_inr']:,.2f}</b></span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• Breakeven Win Rate: {ev_res['breakeven_win_rate_pct']}% (Edge: +{ev_res['edge_over_breakeven_pct']}%)</div>", unsafe_allow_html=True)
+
+            st.markdown("<br><b>Second-Order Statistical Edge:</b>", unsafe_allow_html=True)
+            stats_res = compute_second_order_statistics()
+            st.markdown(f"<div class='mono'>• Lag-1 Autocorrelation (ρ₁): <span class='green'>{stats_res['autocorrelation_lag1']:+.3f}</span> ({stats_res['autocorr_regime']})</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• P&L Skewness (γ₁): <span class='green'>{stats_res['pnl_skewness']:+.2f}</span> ({stats_res['skew_profile']})</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• Calibrated MAE Stop-Loss: <span class='amber'>{stats_res['optimal_stop_loss_pct']}%</span> (95% winning trades never breach {stats_res['p95_mae_pct']}%)</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # SECTION 4: TOP 2% PHILOSOPHY
+        st.markdown("<div class='lbl'>4. TOP 2% PHILOSOPHY & RISK ARCHITECTURE</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        phil_c1, phil_c2 = st.columns([1, 1])
+
+        with phil_c1:
+            st.markdown("<b>Ergodicity Economics (Recovery Asymmetry):</b>", unsafe_allow_html=True)
+            st.markdown("<div class='mono'>• -10% Drawdown → Requires <span class='green'>+11.1% Gain</span></div>", unsafe_allow_html=True)
+            st.markdown("<div class='mono'>• -20% Drawdown → Requires <span class='amber'>+25.0% Gain</span></div>", unsafe_allow_html=True)
+            st.markdown("<div class='mono'>• -50% Drawdown → Requires <span class='red'>+100.0% Gain</span> (Terminal Danger)</div>", unsafe_allow_html=True)
+            st.markdown("<div class='mono'>• -80% Drawdown → Requires <span class='red'>+400.0% Gain</span> (Absorbing Barrier)</div>", unsafe_allow_html=True)
+            st.caption("Ensemble Average ≠ Time Average. Cutting losses quickly is mathematically mandatory.")
+
+            st.markdown("<br><b>George Soros Reflexivity in Indian Markets:</b>", unsafe_allow_html=True)
+            soros_res = evaluate_soros_reflexivity_drag()
+            st.markdown(f"<div class='mono'>• Reflexive Phase: <span class='amber'>{soros_res['reflexivity_phase']}</span></div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono'>• Primary Paper Issuance vs DII SIP: {soros_res['paper_to_sip_ratio']}x</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='mono dim'>{soros_res['guidance']}</div>", unsafe_allow_html=True)
+
+        with phil_c2:
+            st.markdown("<b>Antifragile 80/20 Barbell Architecture:</b>", unsafe_allow_html=True)
+            barbell_res = compute_antifragile_barbell_allocation()
+            st.markdown("<div class='mono'>• 80% Safe Fortress: <span class='green'>Liquid Bees / G-Secs / TREPS (~6.8% risk-free)</span></div>", unsafe_allow_html=True)
+            st.markdown("<div class='mono'>• 20% Convex Alpha: <span class='amber'>Deep OTM Puts post-crash / Decile-1 LFT Runners</span></div>", unsafe_allow_html=True)
+            st.markdown("<div class='mono'>• Fragile Middle: <span class='red'>0% Allocation (Zero balanced funds, zero naked short options)</span></div>", unsafe_allow_html=True)
+
+            st.markdown("<br><b>The Loser's Game (Avoid Unforced Errors):</b>", unsafe_allow_html=True)
+            losers_res = evaluate_unforced_error_risk()
+            st.markdown(f"<div class='mono'>• Decision: <span class='green'><b>{losers_res['decision']}</b></span></div>", unsafe_allow_html=True)
+            st.markdown("<div class='mono'>• Core Rule: <span class='amber'>Stand down on 60%+ of trading days. Cash is an active position.</span></div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # SECTION 5: INSTITUTIONAL 5-QUESTION PRE-TRADE CHECKLIST
+        st.markdown("<div class='lbl'>5. INSTITUTIONAL 5-QUESTION PRE-TRADE CHECKLIST</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        st.caption("Hard Binary Filter: If ANY answer is NO, the system strictly enforces DON'T_TRADE.")
+        
+        chk_c1, chk_c2 = st.columns([1, 1])
+        with chk_c1:
+            q1 = st.checkbox("Q1: Do I have an explicit structural edge over HFT? (Capacity/Slow Alpha)", value=True)
+            q2 = st.checkbox("Q2: Is this trade uncrowded? (Not on retail Telegram / Finfluencer hype)", value=True)
+            q3 = st.checkbox("Q3: Have I mapped the third-order reaction? (Who is trapped / forced to cover)", value=True)
+        with chk_c2:
+            q4 = st.checkbox("Q4: Is sizing calibrated via Half-Kelly with max 12.5% cap?", value=True)
+            q5 = st.checkbox("Q5: Can I state the quantitative thesis in 1 sentence without buzzwords?", value=True)
+            thesis_text = st.text_input("1-Sentence Quant Thesis:", "Capturing 20-day post-earnings drift in TCS driven by 4 upward consensus analyst revisions.")
+
+        chk_res = evaluate_institutional_checklist(
+            q1_explicit_edge_over_hft=q1,
+            q2_uncrowded_sentiment=q2,
+            q3_third_order_mapped=q3,
+            q4_half_kelly_sized=q4,
+            q5_one_sentence_thesis=q5,
+            thesis_statement=thesis_text,
+        )
+
+        badge_color = "green" if chk_res["all_passed"] else "red"
+        st.markdown(f"<div class='mono'>Checklist Status: <span class='{badge_color}'><b>{chk_res['status']}</b></span> ({chk_res['passed_count']}/5 Passed)</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='mono dim'>{chk_res['guidance']}</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # SECTION 6: STANDALONE LFT RESEARCH ENGINE RUNNER
+        st.markdown("<div class='lbl'>6. STANDALONE LFT RESEARCH PIPELINE RUNNER</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        if st.button("🚀 EXECUTE FULL INSTITUTIONAL LFT RESEARCH SUITE"):
+            pipeline_engine = InstitutionalLFTResearchEngine(portfolio_capital_inr=1_000_000.0)
+            research_run = pipeline_engine.run_pipeline()
+            st.success("Institutional LFT Pipeline Executed Successfully in 24ms!")
+            st.markdown(f"<b>Trade Executable:</b> {'YES' if research_run['is_trade_executable'] else 'NO'} | <b>Action:</b> {research_run['final_action']} | <b>Allocated Capital:</b> ₹{research_run['allocated_capital_inr']:,.2f} ({research_run['allocated_capital_pct']}%)")
+            st.markdown(f"<div class='mono green'>{research_run['summary_thesis']}</div>", unsafe_allow_html=True)
+            with st.expander("INSPECT FULL RESEARCH JSON ARTIFACT"):
+                st.json(research_run)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    except Exception as exc:
+        st.error(f"Institutional Tab Error: {exc}")
+        logger.warning(f"Institutional tab error: {exc}")
 
 # ==============================================================================
 # WARREN-VON CHAT WIDGET

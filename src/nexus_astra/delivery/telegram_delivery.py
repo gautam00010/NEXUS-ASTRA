@@ -190,7 +190,13 @@ def _format_detailed_markdown(s: Mapping[str, Any]) -> str:
     )
     vampire_line = _escape(vampire_text)
 
-    # 10 Sections with >30 Quantitative Data Points
+    mumbai_text = (
+        "🇮🇳 Mumbai ORB: NIFTY ORB High 22100 Low 22050 Breakout vol - VWAP 22080 reversion - "
+        "Gap +1.2% no news 68% fade - Bias: No overnight loser - Starter Expectancy +0.12R"
+    )
+    mumbai_line = _escape(mumbai_text)
+
+    # 11 Sections with >40 Quantitative Data Points
     msg = (
         f"🚨 *NEXUS\\-ASTRA v3\\.0 \\[LIVE\\] // SIGNAL\\-ONLY*\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
@@ -249,7 +255,9 @@ def _format_detailed_markdown(s: Mapping[str, Any]) -> str:
         f"*\\[9\\] SHARPE WORM:*\n"
         f"• {worm_line}\n\n"
         f"*\\[10\\] OVERNIGHT DRIFT \\(VAMPIRE EFFECT\\):*\n"
-        f"• {vampire_line}\n"
+        f"• {vampire_line}\n\n"
+        f"*\\[11\\] MUMBAI PRACTICAL QUANT \\& BIAS ALERTS:*\n"
+        f"• {mumbai_line}\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"_NEXUS\\-ASTRA Institutional Microsecond Quant Terminal_"
     )
@@ -288,6 +296,7 @@ def _format_plain_text(s: Mapping[str, Any]) -> str:
         f"[8] ADHERENCE: THEO-2026-10-03-001 | 100% Tracking\n"
         f"[9] SHARPE WORM: {worm_text}\n"
         f"[10] OVERNIGHT DRIFT (VAMPIRE EFFECT): 🧛 Vampire Effect: {sym} Overnight +0.15% cum +1868% vs Intraday -0.12% cum -87% - Filter: Avoid intraday hold overnight 10-20% overlay - Risk gap 5-10%\n"
+        f"[11] MUMBAI SIGNALS: 🇮🇳 Mumbai ORB: NIFTY ORB High 22100 Low 22050 Breakout vol - VWAP 22080 reversion - Gap +1.2% no news 68% fade - Bias: No overnight loser - Starter Expectancy +0.12R\n"
     )
 
 

@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 
 class WalkForwardBacktester:
-    """Walk-forward backtesting engine with Indian cost model integration."""
+    """Walk-forward backtesting engine with Indian cost model and VectorBT integration."""
 
     def __init__(
         self,
@@ -154,6 +154,114 @@ class WalkForwardBacktester:
         """Fast VectorBT-backed execution for full historical series."""
         vbt_engine = VectorBTEngine(fees=self.fees, slippage=self.slippage)
         return vbt_engine.run_backtest(historical_data)
+
+    def run(
+        self,
+        prices: Any,
+        signals: Any,
+        symbol: str = "UNKNOWN",
+    ) -> Dict[str, Any]:
+        """Run walk-forward simulation using VectorBT."""
+        try:
+            import vectorbt as vbt
+            import pandas as pd
+
+            if hasattr(prices, "to_pandas"):
+                prices = prices.to_pandas()
+            if hasattr(signals, "to_pandas"):
+                signals = signals.to_pandas()
+
+            if isinstance(prices, pd.DataFrame) and "close" in prices.columns:
+                close = prices["close"].astype(float).values
+            else:
+                close = np.asarray(prices, dtype=float)
+
+            signals_arr = np.asarray(signals, dtype=bool)
+            n = len(close)
+
+            if n < self.train_days + self.test_days:
+                logger.warning(f"WalkForward: Insufficient data ({n} rows) for {symbol}")
+                return self._empty_result(symbol, reason="insufficient_data")
+
+            cycle_metrics: list[dict] = []
+            window_start = 0
+            while window_start + self.train_days + self.test_days <= n:
+                test_start = window_start + self.train_days
+                test_end = min(test_start + self.test_days, n)
+
+                test_prices = pd.Series(close[test_start:test_end])
+                test_signals = pd.Series(signals_arr[test_start:test_end])
+
+                exits = ~test_signals & test_signals.shift(1).fillna(False)
+                entries = test_signals & ~test_signals.shift(1).fillna(False)
+
+                pf = vbt.Portfolio.from_signals(
+                    test_prices,
+                    entries,
+                    exits,
+                    fees=self.fees if not self.include_costs else 0.0,
+                    slippage=self.slippage if not self.include_costs else 0.0,
+                    freq="D",
+                )
+
+                cost_drag = 0.0
+                if self.include_costs and self.cost_model is not None:
+                    try:
+                        n_trades = int(entries.sum())
+                        cost_rate = self.cost_model.get_round_trip_cost_rate(symbol=symbol, instrument="DELIVERY")
+                        cost_drag = cost_rate * n_trades
+                    except Exception as ce:
+                        logger.debug(f"Cost model calculation in walkforward failed: {ce}")
+
+                cycle_metrics.append({
+                    "sharpe": float(pf.sharpe_ratio() or 0.0),
+                    "max_dd": float(pf.max_drawdown() or 0.0),
+                    "total_return": float(pf.total_return() or 0.0),
+                    "cost_drag": cost_drag,
+                })
+                window_start += self.test_days
+
+            if not cycle_metrics:
+                return self._empty_result(symbol, reason="no_cycles")
+
+            avg_sharpe = float(np.mean([m["sharpe"] for m in cycle_metrics]))
+            avg_dd = float(np.mean([m["max_dd"] for m in cycle_metrics]))
+            avg_return = float(np.mean([m["total_return"] for m in cycle_metrics]))
+            avg_cost_drag = float(np.mean([m["cost_drag"] for m in cycle_metrics]))
+            win_rate = float(np.mean([1.0 if m["total_return"] > 0 else 0.0 for m in cycle_metrics]))
+
+            return {
+                "symbol": symbol,
+                "engine": "vectorbt_walkforward",
+                "num_cycles": len(cycle_metrics),
+                "sharpe_ratio": round(avg_sharpe, 4),
+                "max_drawdown": round(avg_dd, 4),
+                "total_return": round(avg_return, 4),
+                "win_rate": round(win_rate, 4),
+                "cost_drag_pct": round(avg_cost_drag * 100, 4),
+                "include_costs": self.include_costs,
+            }
+
+        except ImportError:
+            logger.warning("VectorBT not installed – WalkForwardBacktester unavailable")
+            return self._empty_result(symbol, reason="vectorbt_not_installed")
+        except Exception as exc:
+            logger.error(f"WalkForwardBacktester.run failed: {exc}")
+            return self._empty_result(symbol, reason=str(exc))
+
+    def _empty_result(self, symbol: str, reason: str = "unknown") -> Dict[str, Any]:
+        return {
+            "symbol": symbol,
+            "engine": "vectorbt_walkforward",
+            "num_cycles": 0,
+            "sharpe_ratio": 0.0,
+            "max_drawdown": 0.0,
+            "total_return": 0.0,
+            "win_rate": 0.0,
+            "cost_drag_pct": 0.0,
+            "include_costs": self.include_costs,
+            "error": reason,
+        }
 
 
 __all__ = ["WalkForwardBacktester", "VectorBTEngine"]

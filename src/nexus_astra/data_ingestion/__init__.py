@@ -20,7 +20,6 @@ from .database import (
 from .ccxt_fetcher import CCXTFetcher, fetch_crypto
 from .openalgo_fetcher import OpenAlgoFetcher
 from .trends_fetcher import TrendsEngine, TrendsFetcher
-
 from .social_fetcher import SocialFetcher, SocialScraper
 
 __all__ = [
@@ -52,3 +51,4 @@ __all__ = [
     "SocialFetcher",
     "SocialScraper",
 ]
+

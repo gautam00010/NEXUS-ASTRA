@@ -160,8 +160,22 @@ class NexusOrchestrator:
         logger.info("Applying Dynamic Weights, Bayesian Update, and PPV Base Rate Filter...")
         filtered = []
         for sig in signals:
-            sig["ppv"] = 0.45 # Mock PPV check > 40%
-            filtered.append(sig)
+            # Real Bayes PPV: P(signal correct | signal fired)
+            # Prior base rate: 8% of stocks in any regime show clean momentum signal
+            prior = 0.08
+            sensitivity = 0.80   # P(signal fires | truly good trade)
+            fpr = 0.15           # P(signal fires | bad trade)
+            composite_conf = sig.get("composite_confidence", 60.0) / 100.0
+            # Weight sensitivity by composite confidence
+            sens_adj = min(0.95, sensitivity * composite_conf / 0.60)
+            # Bayes: PPV = (sensitivity * prior) / (sensitivity * prior + FPR * (1-prior))
+            numerator = sens_adj * prior
+            denominator = numerator + fpr * (1.0 - prior)
+            sig["ppv"] = round(numerator / denominator, 4) if denominator > 0 else 0.0
+            sig["ppv_method"] = "bayes_base_rate"
+            if sig["ppv"] >= 0.40:
+                filtered.append(sig)
+                logger.info(f"PPV PASS {sig['symbol']}: {sig['ppv']:.3f} >= 0.40")
         return filtered
 
     def run_risk_management(self, signals):

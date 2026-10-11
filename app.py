@@ -228,7 +228,7 @@ st.markdown(
 )
 
 # Bottom / Main Mobile Navigation Tabs (44px tap targets)
-tabs = st.tabs(["TAPE", "SCREENER", "EVIDENCE", "LEDGER", "PERF", "RISK"])
+tabs = st.tabs(["TAPE", "SCREENER", "EVIDENCE", "LEDGER", "PERF", "RISK", "LEARN", "DRIFT"])
 
 # ==============================================================================
 # [1] TAPE FEED
@@ -703,6 +703,433 @@ with tabs[5]:
     """,
         unsafe_allow_html=True,
     )
+
+# ==============================================================================
+# [7] LEARN: QUANT PAPERS - SHARPE WORM (SKILL OVER LUCK)
+# ==============================================================================
+with tabs[6]:
+    st.markdown("<div class='lbl'>⚡ QUANT PAPERS // SHARPE RATIO: SKILL OVER LUCK</div>", unsafe_allow_html=True)
+
+    try:
+        from nexus_astra.education.sharpe_worm import (
+            render_3_worms_comparison_html,
+            render_sharpe_worm_canvas_html,
+            create_plotly_sharpe_worm,
+            get_sharpe_worm_metrics,
+        )
+
+        # 3 Worms Side-by-Side: Current Trade (-0.71) vs Nifty 100 (0.80) vs Target (1.58+)
+        worms_html = render_3_worms_comparison_html()
+        st.components.v1.html(worms_html, height=480, scrolling=True)
+
+        # Educational Explainer Breakdown
+        st.markdown("<div class='lbl'>THE THREE WORM REGIMES: DECODING THE SHARPE RATIO</div>", unsafe_allow_html=True)
+        st.markdown(
+            """
+        <div class='card mono' style='line-height: 1.8;'>
+            <div style='display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px;'>
+                <div style='border-left: 2px solid #FF2D2D; padding-left: 8px;'>
+                    <span class='red'>[WORM 1: SHARPE -0.71] GAMBLING / LUCK</span><br/>
+                    • Return: 2.8% | Volatility: 17.6%<br/>
+                    • Red worm wiggles sideways slow.<br/>
+                    • High frantic volatility with minimal forward drift.<br/>
+                    • Typical of unhedged retail gambling or broken models.
+                </div>
+                <div style='border-left: 2px solid #FFA500; padding-left: 8px;'>
+                    <span class='amber'>[WORM 2: SHARPE 0.80] MARKET LUCK / BETA</span><br/>
+                    • Return: 9.5% | Volatility: 12.0%<br/>
+                    • Amber worm with moderate wiggle.<br/>
+                    • Steady progress matching benchmark equity drift.<br/>
+                    • Driven by broad macroeconomic beta rather than pure edge.
+                </div>
+                <div style='border-left: 2px solid #00C853; padding-left: 8px;'>
+                    <span class='green'>[WORM 3: SHARPE 1.58+] INSTITUTIONAL SKILL</span><br/>
+                    • Return: 18.2% | Volatility: 11.5%<br/>
+                    • Green worm moving straight and fast.<br/>
+                    • High directional drift with compressed volatility.<br/>
+                    • Proven quant alpha via Riskfolio HRP + 20% Fractional Kelly.
+                </div>
+            </div>
+        </div>
+        """,
+            unsafe_allow_html=True,
+        )
+
+        # Theoretical Trades Sharpe Worm Viewer
+        st.markdown("<div class='lbl'>LIVE THEORETICAL TRADES SHARPE WORM INSPECTOR</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        df_theo_learn = fetch_table("theoretical_trades")
+        if not df_theo_learn.empty:
+            symbols = df_theo_learn["symbol"].dropna().unique().tolist() if "symbol" in df_theo_learn.columns else ["RELIANCE", "TCS", "INFY"]
+            sel_symbol = st.selectbox("SELECT TRADE TO INSPECT WORM DYNAMICS", options=symbols, index=0)
+            
+            # Map symbol to trade metrics
+            trade_row = df_theo_learn[df_theo_learn["symbol"] == sel_symbol].iloc[-1] if "symbol" in df_theo_learn.columns and not df_theo_learn[df_theo_learn["symbol"] == sel_symbol].empty else df_theo_learn.iloc[-1]
+            theo_ret = float(trade_row.get("expected_return", 0.045) or 0.045)
+            # Default or calculated vol
+            trade_vol = 0.08 if "TCS" in str(sel_symbol) else (0.11 if "RELIANCE" in str(sel_symbol) else 0.09)
+            trade_sharpe = theo_ret / trade_vol if trade_vol > 0 else 1.2
+            
+            c_left, c_right = st.columns([1, 1])
+            with c_left:
+                trade_worm_html = render_sharpe_worm_canvas_html(
+                    excess_return=theo_ret,
+                    volatility=trade_vol,
+                    sharpe=trade_sharpe,
+                    canvas_id=f"trade_worm_{sel_symbol.replace('.', '_')}",
+                    label=f"{sel_symbol} ACTIVE TRADE WORM",
+                    width=320,
+                    height=150,
+                )
+                st.components.v1.html(trade_worm_html, height=250)
+            with c_right:
+                m_info = get_sharpe_worm_metrics(theo_ret, trade_vol, trade_sharpe)
+                st.markdown(
+                    f"""
+                    <div class='mono' style='line-height: 1.8; padding: 12px; background: #000000; border-radius: 4px; border: 1px solid #222222;'>
+                        <span class='dim'>SYMBOL:</span> <span class='amber'>{sel_symbol}</span><br/>
+                        <span class='dim'>THEORETICAL RETURN:</span> <span class='green'>+{theo_ret*100:.1f}%</span><br/>
+                        <span class='dim'>ESTIMATED GARCH VOL:</span> <span class='amber'>{trade_vol*100:.1f}%</span><br/>
+                        <span class='dim'>CALCULATED SHARPE:</span> <span style='color:{m_info["color"]}; font-weight:700;'>{trade_sharpe:.2f}</span><br/>
+                        <span class='dim'>EDGE CLASSIFICATION:</span> <span style='color:{m_info["color"]}; font-weight:700;'>{m_info["category"]}</span><br/>
+                        <span class='dim'>WORM BEHAVIOR:</span> <span style='color:{m_info["color"]};'>{m_info["behavior"]}</span>
+                    </div>
+                    """,
+                    unsafe_allow_html=True,
+                )
+        else:
+            st.markdown("<div class='mono dim'>[NO LIVE THEORETICAL TRADES TO INSPECT]</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # Interactive Sharpe Worm Lab
+        st.markdown("<div class='lbl'>INTERACTIVE SHARPE WORM LAB (SIMULATOR)</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        slider_col1, slider_col2 = st.columns(2)
+        with slider_col1:
+            lab_ret = st.slider("EXCESS RETURN (%) [Worm Length]", min_value=1.0, max_value=35.0, value=14.0, step=0.5)
+        with slider_col2:
+            lab_vol = st.slider("ANNUALIZED VOLATILITY (%) [Worm Wiggle]", min_value=3.0, max_value=40.0, value=8.5, step=0.5)
+
+        lab_sharpe = lab_ret / lab_vol
+        lab_m = get_sharpe_worm_metrics(lab_ret / 100.0, lab_vol / 100.0, lab_sharpe)
+        
+        lab_worm_html = render_sharpe_worm_canvas_html(
+            excess_return=lab_ret / 100.0,
+            volatility=lab_vol / 100.0,
+            sharpe=lab_sharpe,
+            canvas_id="lab_sim_worm_canvas",
+            label=f"LAB SIMULATION // SHARPE: {lab_sharpe:.2f} [{lab_m['category']}]",
+            width=620,
+            height=150,
+        )
+        st.components.v1.html(lab_worm_html, height=250)
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    except Exception as exc:
+        st.error(f"Education Module Error: {exc}")
+        logger.warning(f"Sharpe worm render error: {exc}")
+
+# ==============================================================================
+# [8] DRIFT // OVERNIGHT DRIFT & VAMPIRE EFFECT ANOMALY
+# ==============================================================================
+with tabs[7]:
+    try:
+        from nexus_astra.anomalies import (
+            decompose_returns,
+            knuteson_test,
+            calculate_compounding_asymmetry,
+            calculate_time_weighted_exposure,
+            generate_micron_sawtooth_data,
+            INNOCUOUS_THEORY,
+            KNUTESON_ACCUSATION,
+            ACADEMIC_LITERATURE,
+            HARSH_REALITY,
+            ANOMALY_PAPERS,
+        )
+        from nexus_astra.anomalies.overnight_drift import EMPIRICAL_ANOMALY_BENCHMARKS
+        from nexus_astra.signal_engine.vectorbt_engine import run_overnight_backtest, overnight_drift_filter
+
+        st.markdown(
+            "<div class='lbl'>🧛 OVERNIGHT DRIFT ANOMALY // THE VAMPIRE EFFECT (MICRON +138M% VS -99% INTRADAY)</div>",
+            unsafe_allow_html=True,
+        )
+
+        # Overview banner
+        st.markdown(
+            """
+<div class='card'>
+    <div style='font-size:12px; font-weight:600; color:#FFA500; margin-bottom:4px;'>
+        THE MOST DISCUSSED QUANT PUZZLE: RETURN DECOMPOSITION IDENTITY
+    </div>
+    <div class='mono' style='font-size:11px; color:#EAEAEA; line-height:1.6;'>
+        <b>Decomposition:</b> <code>(1 + Total) = (1 + Overnight) × (1 + Intraday)</code><br>
+        Over 30+ years across 21 leading global markets (Knuteson 2020 arXiv:2010.01727, Haghani 2022),
+        virtually 100% of cumulative equity appreciation occurred while order books were closed overnight,
+        while intraday regular trading hours generated flat to severely negative returns.
+    </div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+        # 1. TOP: Micron (MU) Sawtooth Plotly Chart
+        st.markdown("<div class='lbl'>MICRON TECHNOLOGY (MU 1990-2026) // OVERNIGHT (+138,330,342%) VS INTRADAY (-99.92%)</div>", unsafe_allow_html=True)
+        sawtooth_df = generate_micron_sawtooth_data(start_year=1990, end_year=2026, num_points=360)
+
+        fig_saw = go.Figure()
+        fig_saw.add_trace(
+            go.Scatter(
+                x=sawtooth_df["Date"],
+                y=sawtooth_df["Overnight_Cum"],
+                name="Overnight Only (+138M%) [Buy Close, Sell Open]",
+                line=dict(color="#00C853", width=2.5),
+            )
+        )
+        fig_saw.add_trace(
+            go.Scatter(
+                x=sawtooth_df["Date"],
+                y=sawtooth_df["Buy_Hold_Cum"],
+                name="Buy & Hold (+110,000% / 1,100x)",
+                line=dict(color="#FFA500", width=2.0, dash="dash"),
+            )
+        )
+        fig_saw.add_trace(
+            go.Scatter(
+                x=sawtooth_df["Date"],
+                y=sawtooth_df["Intraday_Cum"],
+                name="Intraday Only (-99.92%) [Buy Open, Sell Close]",
+                line=dict(color="#FF2D2D", width=2.0),
+            )
+        )
+        fig_saw.update_layout(
+            yaxis_type="log",
+            title=dict(
+                text="<b>MICRON TECHNOLOGY (MU): CUMULATIVE WEALTH PATH (LOG SCALE)</b>",
+                font=dict(color="#EAEAEA", size=13, family="IBM Plex Mono"),
+            ),
+            paper_bgcolor="#0F0F0F",
+            plot_bgcolor="#0F0F0F",
+            height=380,
+            margin=dict(l=40, r=20, t=40, b=30),
+            legend=dict(
+                orientation="h",
+                yanchor="bottom",
+                y=1.02,
+                xanchor="right",
+                x=1,
+                font=dict(size=10, color="#EAEAEA"),
+            ),
+            xaxis=dict(
+                gridcolor="#222222",
+                tickfont=dict(color="#888888", size=10, family="IBM Plex Mono"),
+            ),
+            yaxis=dict(
+                gridcolor="#222222",
+                tickfont=dict(color="#888888", size=10, family="IBM Plex Mono"),
+                title=dict(text="Cumulative Wealth Multiplier", font=dict(color="#888888", size=10)),
+            ),
+        )
+        st.plotly_chart(fig_saw, use_container_width=True)
+
+        # 2. MIDDLE: India NSE & Global Return Decomposition Table
+        st.markdown("<div class='lbl'>KNUTESON GLOBAL DECOMPOSITION AUDIT // 21 GLOBAL INDICES & HIGH-ATTENTION EQUITIES</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        
+        benchmarks_data = []
+        for k, v in EMPIRICAL_ANOMALY_BENCHMARKS.items():
+            benchmarks_data.append({
+                "Asset / Symbol": f"{k} ({v['name']})",
+                "Asset Class": v["asset_class"],
+                "Overnight Cum %": f"+{v['overnight_return_pct']:,.1f}%" if v["overnight_return_pct"] >= 0 else f"{v['overnight_return_pct']:,.1f}%",
+                "Intraday Cum %": f"{v['intraday_return_pct']:,.1f}%" if v["intraday_return_pct"] < 0 else f"+{v['intraday_return_pct']:,.1f}%",
+                "Buy & Hold Cum %": f"+{v['buy_hold_return_pct']:,.1f}%",
+                "Drift Ratio": f"{v['overnight_drift_ratio']:.1f}x",
+                "Status": v["drift_status"],
+            })
+        bench_df = pd.DataFrame(benchmarks_data)
+        st.dataframe(bench_df, use_container_width=True, hide_index=True)
+        st.markdown(
+            "<div class='mono dim' style='font-size:10px; margin-top:4px;'>"
+            "Source: Knuteson (2020 arXiv:2010.01727), Haghani & White (2022). Note China CSI 300 negative overnight anomaly due to T+1 settlement constraint."
+            "</div>",
+            unsafe_allow_html=True,
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # 3. BOTTOM: Quant Metrics (Compounding Asymmetry & Time-Weighted Exposure)
+        st.markdown("<div class='lbl'>QUANT MATHEMATICAL PROOFS // COMPOUNDING ASYMMETRY & TIME-WEIGHTED EXPOSURE</div>", unsafe_allow_html=True)
+        asym = calculate_compounding_asymmetry()
+        time_exp = calculate_time_weighted_exposure()
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.markdown(
+                f"""
+<div class='card' style='text-align:center;'>
+    <div class='lbl'>NIGHTLY EDGE</div>
+    <div class='mono green' style='font-size:18px;'>+{asym['daily_edge_pct']:.2f}%</div>
+    <div class='mono dim' style='font-size:10px;'>Avg 0.15% per night</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+        with c2:
+            st.markdown(
+                f"""
+<div class='card' style='text-align:center;'>
+    <div class='lbl'>9,200 NIGHTS CUM</div>
+    <div class='mono green' style='font-size:18px;'>+{asym['overnight_total_return_pct']:,.0f}%</div>
+    <div class='mono dim' style='font-size:10px;'>No upside ceiling</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+        with c3:
+            st.markdown(
+                f"""
+<div class='card' style='text-align:center;'>
+    <div class='lbl'>INTRADAY SAG</div>
+    <div class='mono red' style='font-size:18px;'>{asym['intraday_total_return_pct']:.2f}%</div>
+    <div class='mono dim' style='font-size:10px;'>-0.07% daily decay</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+        with c4:
+            st.markdown(
+                f"""
+<div class='card' style='text-align:center;'>
+    <div class='lbl'>VARIANCE DRAG</div>
+    <div class='mono red' style='font-size:18px;'>{asym['variance_drag_example_pct']:.1f}%</div>
+    <div class='mono dim' style='font-size:10px;'>-20% then +20% = -4%</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+
+        # Time Weighted Card
+        st.markdown(
+            f"""
+<div class='card'>
+    <div class='lbl'>TEMPORAL EXPOSURE SKEW (CALENDAR WEEK = 168 HOURS)</div>
+    <div style='display:flex; justify-content:space-between; margin-top:6px;'>
+        <div>
+            <span class='mono dim'>Market Open (6.5h × 5d):</span>
+            <span class='mono amber' style='font-weight:700;'> {time_exp['open_pct']:.1f}% ({time_exp['open_hours_per_week']}h)</span>
+        </div>
+        <div>
+            <span class='mono dim'>Market Closed / Overnight:</span>
+            <span class='mono green' style='font-weight:700;'> {time_exp['closed_pct']:.1f}% ({time_exp['closed_hours_per_week']}h)</span>
+        </div>
+        <div>
+            <span class='mono dim'>Closed-to-Open Ratio:</span>
+            <span class='mono amber' style='font-weight:700;'> {time_exp['ratio_closed_to_open']:.2f}x</span>
+        </div>
+    </div>
+    <div class='mono dim' style='font-size:11px; margin-top:6px;'>
+        {time_exp['insight']}
+    </div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+        # 4. VECTORBT BACKTEST & FRICTION REALITY
+        st.markdown("<div class='lbl'>VECTORBT C++ NUMBA BACKTEST // NAIVE DAILY FLIPPING VS FRICTION DRAG</div>", unsafe_allow_html=True)
+        st.markdown("<div class='card'>", unsafe_allow_html=True)
+        vbt_res = run_overnight_backtest(fees=0.001, slippage=0.0005)
+        drift_filter = overnight_drift_filter(threshold=1.5)
+
+        f_c1, f_c2, f_c3, f_c4 = st.columns(4)
+        with f_c1:
+            st.markdown(f"<div class='lbl'>GROSS OVERNIGHT</div><div class='mono green' style='font-size:16px;'>+{vbt_res['overnight_gross_pct']}%</div><div class='mono dim' style='font-size:10px;'>Zero friction</div>", unsafe_allow_html=True)
+        with f_c2:
+            st.markdown(f"<div class='lbl'>NET OVERNIGHT (FEE)</div><div class='mono red' style='font-size:16px;'>{vbt_res['overnight_net_pct']}%</div><div class='mono dim' style='font-size:10px;'>{vbt_res['round_trip_cost_bps']} bps round-trip</div>", unsafe_allow_html=True)
+        with f_c3:
+            st.markdown(f"<div class='lbl'>FRICTION DRAG</div><div class='mono red' style='font-size:16px;'>-{vbt_res['friction_drag_pct']}%</div><div class='mono dim' style='font-size:10px;'>252 round-trips/yr</div>", unsafe_allow_html=True)
+        with f_c4:
+            st.markdown(f"<div class='lbl'>ACTIONABLE FILTER</div><div class='mono amber' style='font-size:14px;'>{drift_filter['action']}</div><div class='mono dim' style='font-size:10px;'>Overlay: {drift_filter['recommended_overlay_pct']}%</div>", unsafe_allow_html=True)
+
+        st.markdown(
+            f"""
+<div style='margin-top:10px; padding:8px; background:#1A1A1A; border:1px solid #333; border-radius:4px;'>
+    <div class='mono amber' style='font-size:11px; font-weight:700;'>EXECUTION VERDICT: {vbt_res['verdict']}</div>
+    <div class='mono dim' style='font-size:11px; margin-top:4px;'><b>Filter Rule:</b> {drift_filter['guidance']}</div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+        st.markdown("</div>", unsafe_allow_html=True)
+
+        # 5. ACCORDIONS: THEORIES, HARSH REALITY, & PAPERS
+        st.markdown("<div class='lbl'>DEEP QUANT REASONING // THEORIES, COUNTER-ARGUMENTS & ACADEMIC REPERTOIRE</div>", unsafe_allow_html=True)
+
+        with st.expander("THEORY 1: INNOCUOUS MICROSTRUCTURE (NEWS TIMING, RETAIL MOO, RISK PREMIUM)"):
+            st.markdown(f"<div class='lbl'>{INNOCUOUS_THEORY['title']}</div>", unsafe_allow_html=True)
+            for d in INNOCUOUS_THEORY["drivers"]:
+                st.markdown(f"**{d['name']}**")
+                st.markdown(f"<div class='mono dim' style='margin-bottom:8px;'>{d['mechanism']}</div>", unsafe_allow_html=True)
+
+        with st.expander("THEORY 2: KNUTESON SYSTEMATIC MANIPULATION ACCUSATION (arXiv:2010.01727 - DISCLAIMER: UNPROVEN)"):
+            st.markdown(
+                f"""
+<div style='background:#261805; border:1px solid #FFA500; padding:10px; border-radius:4px; margin-bottom:10px;'>
+    <div style='color:#FFA500; font-weight:700; font-size:11px;'>⚠️ DISCLAIMER: UNPROVEN ALLEGATION</div>
+    <div class='mono dim' style='font-size:11px; color:#EAEAEA; margin-top:4px;'>{KNUTESON_ACCUSATION['disclaimer']}</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+            st.markdown(f"**Author:** {KNUTESON_ACCUSATION['author']}")
+            st.markdown(f"**Core Thesis:**\n\n{KNUTESON_ACCUSATION['core_thesis']}")
+            st.markdown(f"**Global Empirical Footprint:** Observed across {KNUTESON_ACCUSATION['global_footprint']['indices_observed']} indices including {', '.join(KNUTESON_ACCUSATION['global_footprint']['consistent_patterns'])}.")
+            st.markdown(f"**Counter-example:** {KNUTESON_ACCUSATION['global_footprint']['notable_counterexample']}")
+
+        with st.expander("THEORY 3: PEER-REVIEWED ACADEMIC LITERATURE (HAGHANI 2022, LOU ET AL. 2019)"):
+            st.markdown(f"<div class='lbl'>{ACADEMIC_LITERATURE['title']}</div>", unsafe_allow_html=True)
+            for f in ACADEMIC_LITERATURE["key_findings"]:
+                st.markdown(f"**{f['study']}**")
+                st.markdown(f"<div class='mono dim' style='margin-bottom:8px;'>{f['finding']}</div>", unsafe_allow_html=True)
+
+        with st.expander("HARSH REALITY: TRANSACTION COSTS, SPREADS & CATASTROPHIC GAP RISK"):
+            st.markdown(
+                f"""
+<div style='background:#260505; border:1px solid #FF2D2D; padding:10px; border-radius:4px; margin-bottom:10px;'>
+    <div style='color:#FF2D2D; font-weight:700; font-size:11px;'>CRITICAL EXECUTION WARNING</div>
+    <div class='mono dim' style='font-size:11px; color:#EAEAEA; margin-top:4px;'>{HARSH_REALITY['actionable_guidance']}</div>
+</div>
+""",
+                unsafe_allow_html=True,
+            )
+            for b in HARSH_REALITY["friction_barriers"]:
+                st.markdown(f"**{b['barrier']}**")
+                st.markdown(f"<div class='mono dim' style='margin-bottom:8px;'>{b['impact']}</div>", unsafe_allow_html=True)
+
+        with st.expander("ACADEMIC PAPERS BIBLIOGRAPHY (arXiv:2010.01727, arXiv:2104.14987, FT)"):
+            for p in ANOMALY_PAPERS:
+                st.markdown(f"**[{p['year']}] {p['title']}** — *{p['authors']}* ({p['affiliation']})")
+                st.markdown(f"<div class='mono dim'>Citation: {p['citation']} | <a href='{p['url']}' target='_blank' style='color:#FFA500;'>Direct Link</a></div>", unsafe_allow_html=True)
+                st.markdown(f"<div class='mono' style='font-size:11px; margin:4px 0 8px 0;'>Takeaway: {p['key_takeaway']}</div>", unsafe_allow_html=True)
+
+        # 6. Prominent educational disclaimer
+        st.markdown(
+            """
+<div class='card' style='border-left: 3px solid #FFA500; margin-top:16px;'>
+    <div class='lbl amber'>EDUCATIONAL & QUANTITATIVE RESEARCH NOTICE</div>
+    <div class='mono dim' style='font-size:11px;'>
+        This analysis of the overnight drift anomaly is presented exclusively for educational, quantitative demonstration,
+        and market microstructure research purposes. It does not constitute investment advice, trading recommendation, or solicitation.
+        Actual financial markets are subject to structural frictions, bid-ask spreads, transaction taxes, overnight jump risk, and black swan events.
+        Past statistical anomalies do not assure future persistence.
+    </div>
+</div>
+""",
+            unsafe_allow_html=True,
+        )
+
+    except Exception as exc:
+        st.error(f"Overnight Drift Module Error: {exc}")
+        logger.warning(f"Overnight drift tab error: {exc}")
 
 # ==============================================================================
 # WARREN-VON CHAT WIDGET

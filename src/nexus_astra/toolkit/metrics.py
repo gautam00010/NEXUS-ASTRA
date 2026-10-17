@@ -12,7 +12,13 @@ import logging
 from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
-import pandas_ta as ta
+try:
+    import pandas_ta as ta
+except (ImportError, Exception):
+    try:
+        import pandas_ta_classic as ta
+    except (ImportError, Exception):
+        ta = None
 
 logger = logging.getLogger(__name__)
 
@@ -76,8 +82,17 @@ def rsi_volume_confirmation(
     c_col = "Close" if "Close" in df.columns else df.columns[3]
     v_col = "Volume" if "Volume" in df.columns else df.columns[4]
 
-    rsi_series = ta.rsi(df[c_col], length=rsi_period)
-    current_rsi = float(rsi_series.iloc[-1]) if rsi_series is not None and not rsi_series.empty else 50.0
+    if ta is not None and hasattr(ta, "rsi"):
+        rsi_series = ta.rsi(df[c_col], length=rsi_period)
+        current_rsi = float(rsi_series.iloc[-1]) if rsi_series is not None and not rsi_series.empty else 50.0
+    else:
+        # Pure numpy RSI calculation
+        delta = df[c_col].diff()
+        gain = (delta.where(delta > 0, 0)).rolling(window=rsi_period).mean()
+        loss = (-delta.where(delta < 0, 0)).rolling(window=rsi_period).mean()
+        rs = gain / loss.replace(0, np.nan)
+        rsi_series = 100 - (100 / (1 + rs))
+        current_rsi = float(rsi_series.iloc[-1]) if not rsi_series.empty and not np.isnan(rsi_series.iloc[-1]) else 50.0
 
     vol = df[v_col].astype(float)
     vol_sma20 = float(vol.rolling(20).mean().iloc[-1]) if len(vol) >= 20 else float(vol.mean())

@@ -23,6 +23,24 @@ try:
 except ImportError:
     pa = None
 
+try:
+    import nautilus_trader
+    NAUTILUS_AVAILABLE = True
+except Exception:
+    NAUTILUS_AVAILABLE = False
+
+try:
+    import vectorbt as vbt
+    VECTORBT_AVAILABLE = True
+except Exception:
+    VECTORBT_AVAILABLE = False
+
+try:
+    import qlib
+    QLIB_AVAILABLE = True
+except Exception:
+    QLIB_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 # Absolute Path to SQLite database
@@ -1804,6 +1822,8 @@ with tabs[9]:
                 st.json(research_run)
         st.markdown("</div>", unsafe_allow_html=True)
 
+        if not NAUTILUS_AVAILABLE:
+            st.info("ℹ️ Nautilus Rust backtest runs in GitHub Actions 8 AM IST daily — Streamlit shows live TAPE FEED and LFT analytics from database.")
     except Exception as exc:
         st.error(f"Institutional Tab Error: {exc}")
         logger.warning(f"Institutional tab error: {exc}")

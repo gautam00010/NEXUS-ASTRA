@@ -18,7 +18,13 @@ import logging
 from typing import Any, Dict, List
 import numpy as np
 import pandas as pd
-import pandas_ta as ta
+try:
+    import pandas_ta as ta
+except (ImportError, Exception):
+    try:
+        import pandas_ta_classic as ta
+    except (ImportError, Exception):
+        ta = None
 
 from nexus_astra.theories.microstructure import get_current_nse_microstructure_regime
 from nexus_astra.theories.probability_edge import calculate_expectancy

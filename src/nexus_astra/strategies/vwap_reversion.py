@@ -15,7 +15,13 @@ import logging
 from typing import Any, Dict
 import numpy as np
 import pandas as pd
-import pandas_ta as ta
+try:
+    import pandas_ta as ta
+except (ImportError, Exception):
+    try:
+        import pandas_ta_classic as ta
+    except (ImportError, Exception):
+        ta = None
 
 logger = logging.getLogger(__name__)
 

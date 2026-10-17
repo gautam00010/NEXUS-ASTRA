@@ -66,6 +66,24 @@ def start_bot_listener() -> None:
         _bot_thread_started = True
 
 
+def get_telegram_creds() -> tuple[str | None, str | None]:
+    """Retrieve Telegram Bot Token and Chat ID prioritizing Streamlit secrets then env."""
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets"):
+            token = st.secrets.get("TELEGRAM_BOT_TOKEN") or st.secrets.get("general", {}).get("TELEGRAM_BOT_TOKEN")
+            chat_id = st.secrets.get("TELEGRAM_CHAT_ID") or st.secrets.get("general", {}).get("TELEGRAM_CHAT_ID")
+            if token and token != "xxx" and not str(token).startswith("your_"):
+                return str(token), str(chat_id) if chat_id else None
+    except Exception:
+        pass
+
+    import os
+    token = os.getenv("TELEGRAM_BOT_TOKEN") or config.get_secret("TELEGRAM_BOT_TOKEN")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID") or config.get_secret("TELEGRAM_CHAT_ID")
+    return token, chat_id
+
+
 def send_detailed_alert(payload: Mapping[str, Any] | str) -> dict[str, Any]:
     """
     Direct synchronous entry-point for sending comprehensive 8-section Bloomberg-style Telegram alerts.
@@ -73,33 +91,10 @@ def send_detailed_alert(payload: Mapping[str, Any] | str) -> dict[str, Any]:
     """
     signal = _normalize_payload(payload)
 
-    # Resolve token: st.secrets -> os.getenv -> config.get_secret
-    bot_token = None
-    try:
-        import streamlit as st
-        if hasattr(st, "secrets"):
-            bot_token = st.secrets.get("TELEGRAM_BOT_TOKEN")
-            if not bot_token and "general" in st.secrets:
-                bot_token = st.secrets["general"].get("TELEGRAM_BOT_TOKEN")
-    except Exception:
-        bot_token = None
-
-    if not bot_token or bot_token == "xxx" or str(bot_token).startswith("your_"):
-        bot_token = os.getenv("TELEGRAM_BOT_TOKEN") or config.get_secret("TELEGRAM_BOT_TOKEN")
-
-    # Resolve chat_id: payload -> st.secrets -> os.getenv -> config.get_secret
-    chat_id = signal.get("chat_id")
-    if not chat_id:
-        try:
-            import streamlit as st
-            if hasattr(st, "secrets"):
-                chat_id = st.secrets.get("TELEGRAM_CHAT_ID")
-                if not chat_id and "general" in st.secrets:
-                    chat_id = st.secrets["general"].get("TELEGRAM_CHAT_ID")
-        except Exception:
-            chat_id = None
-    if not chat_id or chat_id == "xxx" or str(chat_id).startswith("your_"):
-        chat_id = os.getenv("TELEGRAM_CHAT_ID") or config.get_secret("TELEGRAM_CHAT_ID")
+    # Resolve token & chat_id
+    default_token, default_chat_id = get_telegram_creds()
+    bot_token = default_token
+    chat_id = signal.get("chat_id") or default_chat_id
 
     if not bot_token:
         logger.warning("SKIP Telegram delivery: TELEGRAM_BOT_TOKEN missing.")

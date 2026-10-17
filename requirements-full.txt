@@ -1,0 +1,42 @@
+polars==0.20.0
+pandas==2.2.3
+numpy==1.26.4
+streamlit==1.32.0
+plotly==5.24.1
+requests==2.31.0
+xgboost==2.0.3
+lightgbm==4.3.0
+scikit-learn==1.4.0
+python-telegram-bot==21.0.1
+yfinance==0.2.33
+sqlalchemy==2.0.27
+aiohttp==3.9.5
+pyarrow>=20.0.0
+pytrends==4.9.2
+transformers==4.38.0
+torch==2.2.0
+vaderSentiment==3.3.2
+nsepython==2.101
+matplotlib==3.8.2
+scipy==1.12.0
+finnhub-python==2.4.29
+fredapi==0.5.2
+python-dotenv==1.0.0
+vectorbt==0.28.1
+nautilus_trader==1.220.0
+Riskfolio-Lib==6.2.0
+ccxt==4.3.1
+openalgo==1.0.47
+statsmodels==0.14.2
+arch==7.0.0
+PyPortfolioOpt==1.5.6
+quantstats==0.0.86
+# pandas-ta==0.3.14b0 (handled with pure numpy/pandas vectorized fallback)
+numba==0.61.2
+hmmlearn==0.3.2
+PyWavelets>=1.4.0
+pykalman>=0.9.5
+networkx>=3.0
+
+# pyqlib optional - pure numpy HMM fallback
+# pyqlib==0.9.7

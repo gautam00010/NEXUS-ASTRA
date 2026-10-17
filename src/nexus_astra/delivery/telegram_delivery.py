@@ -134,33 +134,40 @@ def send_detailed_alert(payload: Mapping[str, Any] | str) -> dict[str, Any]:
 
     cid_out = int(chat_id) if str(chat_id).isdigit() else chat_id
 
-    try:
-        resp = requests.post(
-            url,
-            json={
-                "chat_id": chat_id,
-                "text": msg,
-                "parse_mode": "MarkdownV2",
-                "disable_web_page_preview": True,
-            },
-            timeout=10,
-        )
-        if resp.status_code == 200:
-            logger.info("Telegram detailed alert delivered successfully (HTTP 200).")
-            return {"status": "sent", "chat_id": cid_out, "response": resp.json()}
-        else:
-            logger.warning(f"Telegram API responded with HTTP {resp.status_code}: {resp.text}")
-            # Fallback to plain text if MarkdownV2 has parsing differences
-            plain_msg = _format_plain_text(signal)
-            resp_fallback = requests.post(
+    last_err = None
+    for attempt in range(2):
+        try:
+            resp = requests.post(
                 url,
-                json={"chat_id": chat_id, "text": plain_msg, "disable_web_page_preview": True},
-                timeout=10,
+                json={
+                    "chat_id": chat_id,
+                    "text": msg,
+                    "parse_mode": "MarkdownV2",
+                    "disable_web_page_preview": True,
+                },
+                timeout=20,
             )
-            return {"status": "sent", "chat_id": cid_out, "mode": "plain", "response": resp_fallback.json()}
-    except Exception as e:
-        logger.error(f"Telegram HTTP delivery failed: {e}")
-        return {"status": "failed", "error": str(e)}
+            if resp.status_code == 200:
+                logger.info("Telegram detailed alert delivered successfully (HTTP 200).")
+                return {"status": "sent", "chat_id": cid_out, "response": resp.json()}
+            else:
+                logger.warning(f"Telegram API responded with HTTP {resp.status_code}: {resp.text}")
+                # Fallback to plain text if MarkdownV2 has parsing differences
+                plain_msg = _format_plain_text(signal)
+                resp_fallback = requests.post(
+                    url,
+                    json={"chat_id": chat_id, "text": plain_msg, "disable_web_page_preview": True},
+                    timeout=20,
+                )
+                return {"status": "sent", "chat_id": cid_out, "mode": "plain", "response": resp_fallback.json()}
+        except Exception as e:
+            last_err = e
+            logger.warning(f"Telegram attempt {attempt + 1} error: {e}")
+            import time
+            time.sleep(1)
+
+    logger.error(f"Telegram HTTP delivery failed after retries: {last_err}")
+    return {"status": "failed", "error": str(last_err)}
 
 
 async def send_telegram_signal(payload: Mapping[str, Any] | str) -> dict[str, Any]:

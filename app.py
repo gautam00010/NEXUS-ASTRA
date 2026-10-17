@@ -18,6 +18,11 @@ import plotly.graph_objects as go
 from sqlalchemy import create_engine, text
 import streamlit as st
 
+try:
+    import pyarrow as pa
+except ImportError:
+    pa = None
+
 logger = logging.getLogger(__name__)
 
 # Absolute Path to SQLite database

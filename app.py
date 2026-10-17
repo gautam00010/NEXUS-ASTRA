@@ -217,7 +217,7 @@ st.markdown(
 <div class='top-bar'>
     <div>
         <span class='live-badge'>â— LIVE</span>
-        <span>NEXUS-ASTRA v3.0 // 18ms VON // Python 3.12</span>
+        <span>NEXUS-ASTRA v3.0 // 18ms VON // Python 3.11</span>
     </div>
     <div>
         <span class='us-tag'>US: SPX -1.2% | VIX +10% | US10Y 4.28%</span>

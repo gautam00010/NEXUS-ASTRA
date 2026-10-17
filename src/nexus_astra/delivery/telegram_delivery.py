@@ -7,6 +7,7 @@ import logging
 import queue
 import threading
 import asyncio
+import os
 from typing import Any, Mapping
 import requests
 
@@ -71,8 +72,34 @@ def send_detailed_alert(payload: Mapping[str, Any] | str) -> dict[str, Any]:
     Contains >30 granular quantitative data points.
     """
     signal = _normalize_payload(payload)
-    bot_token = config.get_secret("TELEGRAM_BOT_TOKEN")
-    chat_id = signal.get("chat_id") or config.get_secret("TELEGRAM_CHAT_ID")
+
+    # Resolve token: st.secrets -> os.getenv -> config.get_secret
+    bot_token = None
+    try:
+        import streamlit as st
+        if hasattr(st, "secrets"):
+            bot_token = st.secrets.get("TELEGRAM_BOT_TOKEN")
+            if not bot_token and "general" in st.secrets:
+                bot_token = st.secrets["general"].get("TELEGRAM_BOT_TOKEN")
+    except Exception:
+        bot_token = None
+
+    if not bot_token or bot_token == "xxx" or str(bot_token).startswith("your_"):
+        bot_token = os.getenv("TELEGRAM_BOT_TOKEN") or config.get_secret("TELEGRAM_BOT_TOKEN")
+
+    # Resolve chat_id: payload -> st.secrets -> os.getenv -> config.get_secret
+    chat_id = signal.get("chat_id")
+    if not chat_id:
+        try:
+            import streamlit as st
+            if hasattr(st, "secrets"):
+                chat_id = st.secrets.get("TELEGRAM_CHAT_ID")
+                if not chat_id and "general" in st.secrets:
+                    chat_id = st.secrets["general"].get("TELEGRAM_CHAT_ID")
+        except Exception:
+            chat_id = None
+    if not chat_id or chat_id == "xxx" or str(chat_id).startswith("your_"):
+        chat_id = os.getenv("TELEGRAM_CHAT_ID") or config.get_secret("TELEGRAM_CHAT_ID")
 
     if not bot_token:
         logger.warning("SKIP Telegram delivery: TELEGRAM_BOT_TOKEN missing.")
@@ -105,6 +132,8 @@ def send_detailed_alert(payload: Mapping[str, Any] | str) -> dict[str, Any]:
     msg = _format_detailed_markdown(signal)
     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
 
+    cid_out = int(chat_id) if str(chat_id).isdigit() else chat_id
+
     try:
         resp = requests.post(
             url,
@@ -118,7 +147,7 @@ def send_detailed_alert(payload: Mapping[str, Any] | str) -> dict[str, Any]:
         )
         if resp.status_code == 200:
             logger.info("Telegram detailed alert delivered successfully (HTTP 200).")
-            return {"status": "delivered", "response": resp.json()}
+            return {"status": "sent", "chat_id": cid_out, "response": resp.json()}
         else:
             logger.warning(f"Telegram API responded with HTTP {resp.status_code}: {resp.text}")
             # Fallback to plain text if MarkdownV2 has parsing differences
@@ -128,7 +157,7 @@ def send_detailed_alert(payload: Mapping[str, Any] | str) -> dict[str, Any]:
                 json={"chat_id": chat_id, "text": plain_msg, "disable_web_page_preview": True},
                 timeout=10,
             )
-            return {"status": "delivered_plain", "response": resp_fallback.json()}
+            return {"status": "sent", "chat_id": cid_out, "mode": "plain", "response": resp_fallback.json()}
     except Exception as e:
         logger.error(f"Telegram HTTP delivery failed: {e}")
         return {"status": "failed", "error": str(e)}

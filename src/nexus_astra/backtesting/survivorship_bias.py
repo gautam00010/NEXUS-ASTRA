@@ -30,15 +30,30 @@ class SurvivorshipCorrector:
             rows = session.query(IndexConstituents).all()
             
         if not rows:
-            df = pl.DataFrame(schema={
-                "index_name": pl.Utf8,
-                "symbol": pl.Utf8,
-                "entry_date": pl.Date,
-                "exit_date": pl.Date,
-                "is_delisted": pl.Boolean
-            })
-            self._constituents_cache = df
-            return df
+            is_real_database = (
+                hasattr(database_manager, "engine")
+                and str(database_manager.engine.url).endswith(".db")
+            )
+            try:
+                if is_real_database:
+                    from scripts.populate_constituents import populate_all_indices
+                    populate_all_indices(database_manager)
+                    with database_manager.session_scope() as session:
+                        rows = session.query(IndexConstituents).all()
+                else:
+                    rows = []
+            except Exception as exc:
+                logger.error("DATA_FAIL: Could not populate PIT constituents: %s", exc)
+            if not rows:
+                df = pl.DataFrame(schema={
+                    "index_name": pl.Utf8,
+                    "symbol": pl.Utf8,
+                    "entry_date": pl.Date,
+                    "exit_date": pl.Date,
+                    "is_delisted": pl.Boolean
+                })
+                self._constituents_cache = df
+                return df
             
         records: list[dict[str, Any]] = []
         for row in rows:
@@ -46,7 +61,13 @@ class SurvivorshipCorrector:
             record.pop("_sa_instance_state", None)
             records.append(record)
             
-        df = pl.DataFrame(records)
+        df = pl.DataFrame(records, schema={
+            "index_name": pl.Utf8,
+            "symbol": pl.Utf8,
+            "entry_date": pl.Date,
+            "exit_date": pl.Date,
+            "is_delisted": pl.Boolean,
+        }, strict=False)
         self._constituents_cache = df
         return df
 

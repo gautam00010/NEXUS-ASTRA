@@ -8,7 +8,7 @@ from pathlib import Path
 from threading import Lock
 from typing import Generator
 
-from sqlalchemy import Boolean, Date, DateTime, Integer, Numeric, String, UniqueConstraint, create_engine, func, ForeignKey
+from sqlalchemy import Boolean, Date, DateTime, Integer, Numeric, String, UniqueConstraint, create_engine, func, ForeignKey, JSON, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column, sessionmaker
 
 
@@ -214,6 +214,7 @@ class ActualFills(Base):
     observation_date: Mapped[date | None] = mapped_column("ObservationDate", Date, nullable=True)
     publication_date: Mapped[datetime | None] = mapped_column("PublicationDate", DateTime(timezone=True), nullable=True)
     first_allowed_date: Mapped[date | None] = mapped_column("FirstAllowedDate", Date, nullable=True)
+    weights_json: Mapped[dict | None] = mapped_column("WeightsJson", JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 class AdherenceDaily(Base):
@@ -349,6 +350,22 @@ class DynamicWeights(Base):
     weight: Mapped[float] = mapped_column("Weight", Numeric(18, 6), nullable=False)
     correlation: Mapped[float | None] = mapped_column("Correlation", Numeric(18, 6), nullable=True)
     accuracy: Mapped[float | None] = mapped_column("Accuracy", Numeric(18, 6), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class DatasetPerformance(Base):
+    __tablename__ = "dataset_performance"
+    __table_args__ = (
+        UniqueConstraint("Dataset", "Regime", "Date", name="uq_dataset_performance"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    dataset: Mapped[str] = mapped_column("Dataset", String(64), nullable=False)
+    regime: Mapped[str] = mapped_column("Regime", String(32), nullable=False)
+    date: Mapped[date] = mapped_column("Date", Date, nullable=False)
+    brier_score: Mapped[float] = mapped_column("BrierScore", Numeric(18, 8), nullable=False)
+    log_loss: Mapped[float] = mapped_column("LogLoss", Numeric(18, 8), nullable=False)
+    deflated_sharpe: Mapped[float] = mapped_column("DeflatedSharpe", Numeric(18, 8), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
@@ -630,6 +647,13 @@ class DatabaseManager:
 
     def create_tables(self) -> None:
         Base.metadata.create_all(bind=self.engine)
+        # SQLite create_all does not alter existing tables; add the dual-ledger
+        # weights column non-destructively for existing deployments.
+        with self.engine.begin() as connection:
+            columns = connection.execute(text("PRAGMA table_info(actual_fills)")).fetchall()
+            names = {row[1] for row in columns}
+            if "WeightsJson" not in names:
+                connection.execute(text("ALTER TABLE actual_fills ADD COLUMN WeightsJson JSON"))
 
     def get_session(self) -> Session:
         return self.SessionLocal()

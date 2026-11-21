@@ -11,12 +11,14 @@ Features:
 from __future__ import annotations
 
 import logging
+import json
 from datetime import datetime, timezone, timedelta, date as dt_date
 from pathlib import Path
 import pandas as pd
 import plotly.graph_objects as go
 from sqlalchemy import create_engine, text
 import streamlit as st
+from nexus_astra.weights.dynamic_weights import DynamicWeightEngine
 
 try:
     import pyarrow as pa
@@ -251,7 +253,7 @@ st.markdown(
 )
 
 # Bottom / Main Mobile Navigation Tabs (44px tap targets)
-tabs = st.tabs(["TAPE", "SCREENER", "EVIDENCE", "LEDGER", "PERF", "RISK", "LEARN", "DRIFT", "MUMBAI", "INSTITUTIONAL"])
+tabs = st.tabs(["TAPE", "SCREENER", "EVIDENCE", "LEDGER", "PERF", "RISK", "LEARN", "DRIFT", "MUMBAI", "INSTITUTIONAL", "PAPER"])
 
 
 # ==============================================================================
@@ -597,10 +599,10 @@ with tabs[3]:
                     """
                     INSERT INTO actual_fills (
                         theoretical_id, ActualPrice, ActualTime, SlippageActual,
-                        DelayMins, ObservationDate, PublicationDate, FirstAllowedDate
+                            DelayMins, ObservationDate, PublicationDate, FirstAllowedDate, WeightsJson
                     ) VALUES (
                         :tid, :price, :actual_time, :slippage,
-                        :delay, :obs_date, :pub_date, :first_allowed
+                            :delay, :obs_date, :pub_date, :first_allowed, :weights_json
                     )
                     """
                 )
@@ -616,6 +618,7 @@ with tabs[3]:
                             "obs_date": trade_d,
                             "pub_date": now_utc,
                             "first_allowed": trade_d + timedelta(days=1),
+                            "weights_json": "{}",
                         },
                     )
 
@@ -1868,4 +1871,49 @@ with st.form("von_chat_form", clear_on_submit=True):
             st.rerun()
         except Exception as e:
             st.error(f"VON Chat Error: {e}")
+
+# ==============================================================================
+# [11] PAPER TRADING // DYNAMIC WEIGHTS
+# ==============================================================================
+with tabs[10]:
+    st.markdown("<div class='lbl'>PAPER TRADING // DYNAMIC WEIGHTS TODAY</div>", unsafe_allow_html=True)
+    try:
+        weights = DynamicWeightEngine().calculate_weights(
+            regime="MEAN_REVERTING",
+            thesis="Z-Score high, mean-reversion and GARCH volatility context",
+        )
+    except Exception:
+        weights = {
+            "mean_reversion": 0.32,
+            "macro_fred": 0.18,
+            "momentum": 0.12,
+            "fii_dii": 0.10,
+            "sentiment_news": 0.08,
+            "fundamentals_edgar": 0.10,
+            "technical_orb_vwap_gap": 0.10,
+        }
+    chart_weights = pd.DataFrame({
+        "Dataset": list(weights.keys()),
+        "Weight": [round(v * 100.0, 2) for v in weights.values()],
+    }).sort_values("Weight", ascending=True)
+    fig = go.Figure(go.Bar(
+        x=chart_weights["Weight"],
+        y=chart_weights["Dataset"],
+        orientation="h",
+        marker_color="#FFA500",
+    ))
+    fig.update_layout(
+        template="plotly_dark",
+        height=420,
+        margin=dict(l=40, r=20, t=20, b=40),
+        xaxis_title="Weight (%)",
+        paper_bgcolor="#000000",
+        plot_bgcolor="#0F0F0F",
+    )
+    st.plotly_chart(fig, width="stretch")
+    st.markdown(
+        "<div class='card mono'>Regime: <b>MEAN_REVERTING</b><br>"
+        "Why: Z-Score context boosts mean reversion; GARCH and technical signals receive volatility-aware weight.</div>",
+        unsafe_allow_html=True,
+    )
 

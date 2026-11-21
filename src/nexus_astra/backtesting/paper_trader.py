@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
+import json
 import subprocess
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -95,6 +96,7 @@ class PaperTrader:
         theoretical_id: int,
         actual_price: float,
         delay_mins: float = 0.0,
+        weights_json: dict[str, float] | None = None,
     ) -> ActualFills | None:
         """Record actual broker fill matched against theoretical intent."""
         today = date.today()
@@ -120,6 +122,7 @@ class PaperTrader:
                 observation_date=today,
                 publication_date=now_utc,
                 first_allowed_date=today,
+                weights_json=weights_json,
             )
             session.add(fill)
             session.flush()

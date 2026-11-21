@@ -132,9 +132,6 @@ class SignalOrchestrator:
             dxy=dxy,
             us10y=us10y,
         )
-        if gate_res["status"] == "NO_TRADE":
-            logger.warning(f"Gates failed: {gate_res['reason']}")
-            return None
         """Combine all input streams, apply directional filters, and compute composite trade signal details."""
         logger.info(f"Orchestrating composite signal for {symbol} under regime {regime_state}...")
 
@@ -254,10 +251,20 @@ class SignalOrchestrator:
         layers = [layer_macro, layer_micro, layer_alt, layer_cross]
         agreement_count = sum(1 for score in layers if (direction == "LONG" and score >= 0) or (direction == "SHORT" and score < 0))
 
-        # Strict Filter Rule: Score > 75 AND at least 3 layers agree on direction
-        if composite_score <= 75.0 or agreement_count < 3:
-            logger.info(f"Signal rejected. Composite: {composite_score:.2f} <= 75 or Layer Agreement: {agreement_count} < 3.")
-            return None
+        # Soft calibrated probability. Legacy 0-100 scores are converted to 0-1.
+        raw_probability = max(0.0, min(1.0, abs(weighted_score) / 100.0))
+        gate_penalty = float(gate_res.get("penalty", 0.0))
+        if agreement_count < 3:
+            gate_penalty += 0.05
+        probability = max(0.0, min(1.0, raw_probability - gate_penalty))
+        if probability < 0.50:
+            signal_status = "HOLD"
+        elif probability < 0.65:
+            signal_status = "WATCH"
+        elif probability <= 0.80:
+            signal_status = "TRADE"
+        else:
+            signal_status = "STRONG_TRADE"
 
         # Compute Fair Value and Health Score
         fv_metrics = self.fv_engine.compute_fair_value_and_health(price_history.tail(1), price_val)
@@ -290,6 +297,19 @@ class SignalOrchestrator:
             dominant_factor=dominant_factor,
         )
         duration = duration_metrics.duration_category
+        if duration_metrics.theta <= 2.0:
+            gate_penalty += 0.10
+        if abs(duration_metrics.z_score) < 0.5:
+            gate_penalty += 0.05
+        probability = max(0.0, min(1.0, raw_probability - gate_penalty))
+        if probability < 0.50:
+            signal_status = "HOLD"
+        elif probability < 0.65:
+            signal_status = "WATCH"
+        elif probability <= 0.80:
+            signal_status = "TRADE"
+        else:
+            signal_status = "STRONG_TRADE"
 
         # Look up win rate and compute expected return using fractional Kelly
         win_rate = HISTORICAL_WIN_RATES.get(regime_state, 0.55)
@@ -305,7 +325,9 @@ class SignalOrchestrator:
         position_size_pct = min(kelly_20pct, 15.0)
         # Apply US influence gate multiplier (1.0=normal | 0.5=elevated_risk | 0.0=risk_off)
         position_size_pct = position_size_pct * us_position_mult
-        position_size_pct = max(0.0, min(15.0, position_size_pct))
+        if signal_status == "WATCH":
+            position_size_pct *= 0.5
+        position_size_pct = max(0.0, min(12.5 if signal_status == "STRONG_TRADE" else 15.0, position_size_pct))
 
         stop_loss_pct = 1.5 if direction == "LONG" else 1.0
 
@@ -323,13 +345,13 @@ class SignalOrchestrator:
             "SPX gap < -1.5% overnight OR VIX spike +15% -> reduce/exit.",
             "US10Y rises > 10bps -> FII outflow unwind risk.",
             "VIX > 25 OR FII 5d cumulative < -15,000 Cr.",
-            "Composite score < 50 OR < 3 of 4 layers agree.",
+            "Probability below 0.50: preserve capital and wait for stronger confirmation.",
         ]
 
         return {
             "symbol": symbol,
             "direction": direction,
-            "confidence": float(composite_confidence),
+            "confidence": float(probability),
             "duration": duration,
             "duration_days": duration_metrics.duration_days,
             "duration_display": duration_metrics.duration_display,
@@ -349,6 +371,11 @@ class SignalOrchestrator:
             "rationale": rationale,
             "invalidation_conditions": invalidation_conditions,
             "composite_score": float(composite_score),
+            "probability": float(probability),
+            "signal_status": signal_status,
+            "signal": signal_status,
+            "gate_penalty": gate_penalty,
+            "gate_reasons": gate_res.get("penalties", {}),
             "layer_agreement_count": agreement_count,
             "fair_value": float(fv_metrics["intrinsic_value"]),
             "fair_value_upside_pct": float(fv_metrics["fair_value_upside_pct"]),
@@ -443,7 +470,7 @@ def run_pipeline(symbol: str = "RELIANCE.NS", regime_state: str = "NEUTRAL_CALM"
         from nexus_astra.signal_engine.composite_orchestrator import run_pipeline
         result = run_pipeline()
         assert result is not None
-        assert result.get("status") in ("PASS", "ERROR", "NO_TRADE")
+        assert result.get("status") in ("HOLD", "WATCH", "TRADE", "STRONG_TRADE", "ERROR")
     """
     import polars as pl
 
@@ -493,8 +520,14 @@ def run_pipeline(symbol: str = "RELIANCE.NS", regime_state: str = "NEUTRAL_CALM"
         )
 
         if result is None:
-            return {"status": "NO_TRADE", "symbol": symbol, "reason": "Gates blocked signal"}
-        result["status"] = "PASS"
+            return {
+                "status": "HOLD",
+                "symbol": symbol,
+                "probability": 0.25,
+                "signal_status": "HOLD",
+                "reason": "Insufficient price or data; soft HOLD",
+            }
+        result["status"] = result.get("signal_status", "WATCH")
         return result
 
     except Exception as exc:

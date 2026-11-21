@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sys
+import argparse
 import time
 from dataclasses import asdict, is_dataclass
 from datetime import datetime, timezone
@@ -225,11 +226,13 @@ async def pipeline_run(circuit_breaker: CircuitBreaker, health_monitor: SystemHe
     telegram_payloads: list[dict[str, Any]] = []
 
     if composite_signal is None:
-        print("Composite Signal Orchestrator: No trade signal cleared conviction threshold & agreement check.")
+        print("Composite Signal Orchestrator: No data returned; emitting soft HOLD.")
         no_trade_output = {
-            "status": "NO_TRADE",
-            "reason": "No sleeve cleared threshold",
-            "confidence": 0.0,
+            "status": "HOLD",
+            "reason": "Insufficient data; soft HOLD with daily digest",
+            "confidence": 0.25,
+            "probability": 0.25,
+            "signal_status": "HOLD",
             "timestamp_utc": datetime.now(timezone.utc).isoformat(),
             "regime_state": regime_state,
             "signals_sent": 0,
@@ -247,7 +250,7 @@ async def pipeline_run(circuit_breaker: CircuitBreaker, health_monitor: SystemHe
         print(json.dumps(no_trade_output, indent=2))
         print("=====================================================================\n")
 
-        # Update unrealized PnL and adherence tracking even on NO_TRADE days
+        # Update unrealized PnL and adherence tracking even on HOLD days
         paper_trader.update_unrealized_pnl(symbol="^NSEI", current_close=spot_price or 22000.0)
 
         end_time = time.time()
@@ -258,8 +261,20 @@ async def pipeline_run(circuit_breaker: CircuitBreaker, health_monitor: SystemHe
             "recent_errors": sum(len(fails) for fails in circuit_breaker.api_failures.values())
         })
 
+        digest_payload = {
+            "Status": "HOLD",
+            "Symbol": "^NSEI",
+            "Probability": 0.25,
+            "Regime": regime_state,
+            "Reason": no_trade_output["reason"],
+            "Daily Digest": True,
+        }
+        circuit_breaker.send_alert(
+            json.dumps(digest_payload),
+            lambda msg: asyncio.get_event_loop().create_task(send_telegram_signal(json.loads(msg))),
+        )
         print(json.dumps(no_trade_output, indent=2))
-        logger.info("Telegram suppressed NO_TRADE correct")
+        logger.info("Telegram daily digest sent for HOLD")
         return no_trade_output
 
     # Phase 3: Record to Paper Trader (Only for approved trades)
@@ -294,7 +309,7 @@ async def pipeline_run(circuit_breaker: CircuitBreaker, health_monitor: SystemHe
 
     # Construct standard Telegram signal alert payload
     payload = {
-        "Status": "APPROVED",
+        "Status": composite_signal.get("signal_status", "WATCH"),
         "Symbol": composite_signal["symbol"],
         "Signal Type": f"{composite_signal['direction']}_{composite_signal['duration']}",
         "Entry Price": spot_price or 22000.0,
@@ -567,11 +582,30 @@ def run_audit_maths() -> dict[str, Any]:
 
 
 if __name__ == "__main__":
-    if "--audit-maths" in sys.argv:
+    parser = argparse.ArgumentParser(description="NEXUS-ASTRA")
+    parser.add_argument("--audit-maths", action="store_true")
+    parser.add_argument("--daily", action="store_true", help="Run and always send the daily digest")
+    parser.add_argument("--force-alert", action="store_true", help="Send alert even for HOLD")
+    cli_args = parser.parse_args()
+    if cli_args.audit_maths:
         print("================== BRUTAL QUANT MATH AUDIT (14 ENGINES) ==================")
         maths_out = run_audit_maths()
         for k, v in maths_out.items():
             print(f"  [PASS] {k:<30}: {v}")
         print("==========================================================================")
         sys.exit(0)
-    asyncio.run(main())
+    async def _run() -> dict[str, Any] | None:
+        result = await main()
+        if cli_args.daily or cli_args.force_alert:
+            payload = {
+                "Status": str((result or {}).get("status", "HOLD")).upper(),
+                "Signal": "Daily digest",
+                "Regime": str((result or {}).get("regime_state", "MEAN_REVERTING")),
+                "Daily 8 AM IST": "Top signal waiting",
+                "Reason": str((result or {}).get("reason", "No blocking conditions; awaiting confirmation")),
+                "Weights Today": "dynamic regime-adaptive weights",
+            }
+            await send_telegram_signal(payload)
+        return result
+
+    asyncio.run(_run())

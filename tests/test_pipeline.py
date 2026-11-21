@@ -648,7 +648,8 @@ def test_composite_orchestrator(mock_db_manager):
         price_history=df_prices
     )
 
-    assert rejected_signal is None
+    assert rejected_signal is not None
+    assert rejected_signal["signal_status"] in ("HOLD", "WATCH", "TRADE", "STRONG_TRADE")
 
 
 

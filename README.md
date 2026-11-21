@@ -22,3 +22,12 @@ Institutional Quantitative Intelligence Platform
 
 4. **Local / OCI Deployment:**
    - Run `docker-compose up` with your `.env` configured.
+## Dynamic regime-adaptive weights
+
+NEXUS-ASTRA calibrates dataset influence from HMM/ADX/GARCH/VIX/PCR context rather than fixed percentages.
+
+The formula is:
+
+`weight_i(t) = base_weight_i * regime_multiplier_i(t) * max(0.2, recent_sharpe_i) / realized_vol_i`
+
+Weights are then normalized to sum to 1.0. Recency uses exponential decay `0.94`; negative-Sharpe datasets keep a 5% floor and can recover. Soft states are `HOLD < 0.50`, `WATCH 0.50-0.65`, `TRADE 0.65-0.80`, and `STRONG_TRADE > 0.80`. A HOLD still produces the daily Telegram digest.

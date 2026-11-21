@@ -496,7 +496,12 @@ class EnsembleEngine:
         for column, dtype in frame.schema.items():
             if column in excluded:
                 continue
-            if dtype in pl.NUMERIC_DTYPES or dtype == pl.Boolean:
+            numeric_types = (
+                pl.Int8, pl.Int16, pl.Int32, pl.Int64,
+                pl.UInt8, pl.UInt16, pl.UInt32, pl.UInt64,
+                pl.Float32, pl.Float64,
+            )
+            if dtype in numeric_types or dtype == pl.Boolean:
                 feature_columns.append(column)
         return feature_columns
 

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 logger = logging.getLogger(__name__)
 
 class Gates:
-    """Sequential fail-fast gates for trades."""
+    """Risk checks expressed as soft probability penalties, never trade blocks."""
 
     @staticmethod
     def data_health_gate(last_update: datetime) -> bool:
@@ -151,29 +151,30 @@ class Gates:
         us10y: float | None = None,
         us10y_prev: float | None = None,
     ) -> dict:
-        """Runs all 6 gates sequentially. Fails fast. Returns NO_TRADE as success."""
-        
-        # US Influence Gate – runs first, adjusts regime before Indian gates
-        us_result = Gates.us_influence_gate(spx_pct_chg, vix_close, vix_prev, dxy, us10y, us10y_prev)
-        if us_result["regime_adj"] == "RISK_OFF":
-            return {"status": "NO_TRADE", "reason": "US_RISK_OFF", "us_flags": us_result["flags"], "position_mult": "0.0"}
+        """Returns a soft-gate summary. Failed checks reduce probability, not eligibility."""
 
+        us_result = Gates.us_influence_gate(spx_pct_chg, vix_close, vix_prev, dxy, us10y, us10y_prev)
+        penalties: dict[str, float] = {}
         if not Gates.data_health_gate(last_update):
-            return {"status": "NO_TRADE", "reason": "DATA_FAIL"}
-            
+            penalties["DATA_HEALTH"] = 0.05
         if not Gates.universe_gate(symbol, adv_cr):
-            return {"status": "NO_TRADE", "reason": "UNIVERSE_FAIL"}
-            
+            penalties["UNIVERSE"] = 0.05
         if not Gates.market_risk_gate(vix, fii_5d_cum_cr):
-            return {"status": "NO_TRADE", "reason": "RISK_OFF"}
-            
+            penalties["MARKET_RISK"] = 0.10
         if not Gates.weekly_thesis_gate(price, ema_200, fii_trend_bullish, trade_long):
-            return {"status": "NO_TRADE", "reason": "WEEKLY_THESIS_FAIL"}
-            
+            penalties["WEEKLY_THESIS"] = 0.05
         if not Gates.daily_timing_gate(setup):
-            return {"status": "NO_TRADE", "reason": "DAILY_TIMING_FAIL"}
-            
+            penalties["DAILY_TIMING"] = 0.05
         if not Gates.human_gate():
-            return {"status": "NO_TRADE", "reason": "HUMAN_ACK_FAIL"}
-            
-        return {"status": "PASS", "us_flags": us_result.get("flags", ""), "position_mult": us_result.get("position_mult", "1.0")}
+            penalties["HUMAN_ACK"] = 0.10
+        if us_result["regime_adj"] == "RISK_OFF":
+            penalties["US_RISK_OFF"] = 0.10
+        elif us_result["regime_adj"] == "ELEVATED_RISK":
+            penalties["US_ELEVATED_RISK"] = 0.05
+        return {
+            "status": "PASS",
+            "penalties": penalties,
+            "penalty": round(sum(penalties.values()), 4),
+            "us_flags": us_result.get("flags", ""),
+            "position_mult": us_result.get("position_mult", "1.0"),
+        }

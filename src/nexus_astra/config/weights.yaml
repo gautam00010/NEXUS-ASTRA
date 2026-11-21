@@ -1,0 +1,36 @@
+base_weights:
+  momentum: 0.20
+  mean_reversion: 0.20
+  macro_fred: 0.15
+  fii_dii: 0.10
+  sentiment_news: 0.10
+  fundamentals_edgar: 0.15
+  technical_orb_vwap_gap: 0.10
+
+regime_multipliers:
+  TRENDING:
+    momentum: 2.0
+    technical_orb_vwap_gap: 1.5
+    mean_reversion: 0.5
+    sentiment_news: 1.2
+  MEAN_REVERTING:
+    mean_reversion: 2.0
+    technical_orb_vwap_gap: 1.2
+    momentum: 0.5
+    garch: 1.5
+  HIGH_VOL_SHOCK:
+    garch: 2.0
+    mean_reversion: 1.5
+    momentum: 0.3
+    macro_fred: 0.8
+  MACRO_RISK_OFF:
+    macro_fred: 2.0
+    fii_dii: 2.0
+    fundamentals_edgar: 1.5
+    momentum: 0.5
+
+soft_gate_penalties:
+  johansen_failed: 0.10
+  z_score_failed: 0.05
+  evidence_below_12: 0.05
+  layer_agreement_below_3: 0.05

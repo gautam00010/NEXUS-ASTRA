@@ -273,6 +273,10 @@ def load_nifty_500_pit(dt=None):
     mgr = database_manager
     mgr.create_tables()
     with mgr.session_scope() as session:
+        existing = session.query(IndexConstituents).first()
+    if existing is None:
+        populate_all_indices(mgr)
+    with mgr.session_scope() as session:
         q = session.query(IndexConstituents.symbol).filter(
             IndexConstituents.is_delisted == False
         )

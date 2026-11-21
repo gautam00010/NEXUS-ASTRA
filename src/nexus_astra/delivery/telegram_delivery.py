@@ -170,9 +170,7 @@ async def send_telegram_signal(payload: Mapping[str, Any] | str) -> dict[str, An
     signal = _normalize_payload(payload)
     status = str(signal.get("status") or signal.get("Status") or "APPROVED").upper()
 
-    if status == "NO_TRADE":
-        logger.info("Telegram suppressed NO_TRADE correct")
-        return {"status": "suppressed", "reason": "NO_TRADE"}
+    # HOLD/WATCH/TRADING states are all operational outputs: NO_TRADE is retired.
 
     return send_detailed_alert(signal)
 
